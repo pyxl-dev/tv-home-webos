@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8">
+<title>Bande-annonce</title>
+<style>html, body, #p { margin: 0; width: 100%; height: 100%; background: #000; overflow: hidden; }</style>
+</head><body><div id="p"></div>
+<script>
+// Embedded in the TV app's trailer overlay (iframe). Talks to it with postMessage:
+// in: {cmd: "toggle" | "seek" | "time" | "cc", by: seconds, on: bool}
+// out: {player: "playing" | "paused" | "time" | "ended" | "error" | "cc", code, on, label}
+var v = (location.search.match(/[?&]v=([\w-]+)/) || [])[1];
+var ccWanted = /[?&]cc=1/.test(location.search), ccTimer = null;
+var player;
+function tell(state, extra) {
+  var m = { player: state }; for (var k in extra || {}) m[k] = extra[k];
+  parent.postMessage(m, "*");
+}
+function onYouTubeIframeAPIReady() {
+  player = new YT.Player("p", {
+    videoId: v,
+    playerVars: { autoplay: 1, controls: 0, rel: 0, iv_load_policy: 3, hl: "fr", cc_lang_pref: "fr", playsinline: 1 },
+    events: {
+      onReady: function (e) { e.target.playVideo(); if (ccWanted) setCaptions(true); },
+      onStateChange: function (e) {
+        if (e.data === 1) tell("playing", { at: player.getCurrentTime(), len: player.getDuration() });
+        else if (e.data === 2) tell("paused", { at: player.getCurrentTime(), len: player.getDuration() });
+        else if (e.data === 0) tell("ended");
+      },
+      onError: function (e) { tell("error", { code: e.data }); }
+    }
+  });
+}
+window.addEventListener("message", function (e) {
+  var m = e.data || {};
+  if (!player || !player.getPlayerState) return;
+  if (m.cmd === "toggle") player.getPlayerState() === 1 ? player.pauseVideo() : player.playVideo();
+  else if (m.cmd === "seek") player.seekTo(Math.max(0, player.getCurrentTime() + m.by), true);
+  else if (m.cmd === "cc") setCaptions(m.on);
+  else if (m.cmd === "time") tell("time", { at: player.getCurrentTime(), len: player.getDuration(), playing: player.getPlayerState() === 1 });
+});
+// French captions: a French track if there is one, else the video's own track auto-translated to French.
+// The captions module loads asynchronously, so retry until its track list shows up.
+function setCaptions(on) {
+  ccWanted = on; clearTimeout(ccTimer);
+  if (!on) { player.unloadModule("captions"); tell("cc", { on: false }); return; }
+  player.loadModule("captions");
+  var tries = 0;
+  (function pick() {
+    var list = player.getOption("captions", "tracklist") || [];
+    if (!list.length) {
+      if (++tries < 20) ccTimer = setTimeout(pick, 300); else tell("cc", { on: false, label: "aucun" });
+      return;
+    }
+    var fr = list.filter(function (t) { return /^fr/.test(t.languageCode); })[0];
+    var base = fr || list.filter(function (t) { return !t.kind; })[0] || list[0];
+    var track = { languageCode: base.languageCode };
+    if (!fr) track.translationLanguage = { languageCode: "fr", languageName: "Français" };
+    player.setOption("captions", "track", track);
+    tell("cc", { on: true, label: fr ? "français" : "traduits en français" });
+  })();
+}
+var s = document.createElement("script"); s.src = "https://www.youtube.com/iframe_api"; document.head.appendChild(s);
+</script>
+</body></html>

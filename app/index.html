@@ -1,0 +1,1136 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Accueil</title>
+<style>
+  /* webOS 6 runs Chromium 79: no `inset`, no flex `gap`, no `?.`.
+     Perf: animate only transform/opacity, no 3D, no running animations. */
+  @font-face { font-family: Inter; font-weight: 500; src: url(fonts/inter-500.woff2) format("woff2"); }
+  @font-face { font-family: Inter; font-weight: 700; src: url(fonts/inter-700.woff2) format("woff2"); }
+  @font-face { font-family: Inter; font-weight: 800; src: url(fonts/inter-800.woff2) format("woff2"); }
+
+  /* Theme colours (defaults = "Nuit"); applyTheme() overrides them on :root */
+  :root { --bg: #000; --bg-rgb: 0,0,0; --bg2: #1d2437; --fg: #fff; --fg-rgb: 255,255,255;
+    --accent: #fff; --on-accent: #000; --surface-a: #48494e; --surface-b: #2c2d31; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--bg); color: var(--fg); transition: background .4s;
+    font-family: Inter, "LG Smart UI", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+  .abs { position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
+
+  /* ---------- Top shelf: suggestions ---------- */
+  #shelf { position: absolute; top: 0; left: 0; width: 1920px; height: 660px; overflow: hidden;
+    background: radial-gradient(1000px 600px at 75% 20%, var(--bg2), var(--bg) 70%); }
+  .bd { background: center 20% / cover no-repeat; opacity: 0; transition: opacity .7s ease; }
+  .bd.on { opacity: 1; }
+  #shelf-shade { background: linear-gradient(90deg, rgba(var(--bg-rgb),.9) 0%, rgba(var(--bg-rgb),.55) 38%, rgba(var(--bg-rgb),0) 65%),
+                             linear-gradient(180deg, rgba(var(--bg-rgb),.45) 0%, rgba(var(--bg-rgb),0) 25%, rgba(var(--bg-rgb),0) 55%, var(--bg) 100%); }
+  #shelf-dim { background: var(--bg); opacity: .38; transition: opacity .35s ease; }
+  body.on-shelf #shelf-dim, body.on-top #shelf-dim { opacity: 0; }
+  #shelf-info { position: absolute; left: 110px; top: 165px; width: 900px; transition: opacity .25s ease; }
+  #shelf-info.swap { opacity: 0; }
+  #s-prov { font-size: 20px; font-weight: 800; letter-spacing: 3px; text-transform: uppercase; height: 26px; }
+  #s-title { font-size: 76px; font-weight: 800; letter-spacing: -2px; line-height: 1.04; margin-top: 14px;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  #s-meta { font-size: 24px; font-weight: 500; color: rgba(var(--fg-rgb),.7); margin-top: 16px; }
+  .star { color: #ffd60a; }
+  .offp { color: rgba(var(--fg-rgb),.55); }
+  #s-over { font-size: 24px; font-weight: 500; line-height: 1.45; color: rgba(var(--fg-rgb),.75); margin-top: 16px; width: 820px;
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  #dots { position: absolute; left: 110px; top: 600px; height: 8px; }
+  #dots i { position: relative; display: inline-block; vertical-align: top; width: 8px; height: 8px; border-radius: 4px; margin-right: 8px;
+    background: rgba(var(--fg-rgb),.3); overflow: hidden; transition: width .3s; }
+  #dots i.on { width: 48px; }
+  /* Fills up until the next suggestion */
+  #dots i b { position: absolute; top: 0; left: 0; bottom: 0; width: 100%; background: var(--accent); transform: scaleX(0); transform-origin: left center; }
+  /* Under an open overlay the home is hidden: lighter for the TV, and avoids stale-layer glitches */
+  body.ovl #shelf, body.ovl #topbar, body.ovl #clock, body.ovl .row { visibility: hidden; }
+
+  /* Top bar */
+  #topbar { position: absolute; top: 56px; left: 110px; display: flex; }
+  .chip { height: 50px; padding: 0 24px; border-radius: 25px; margin-right: 16px; display: flex; align-items: center;
+    font-size: 21px; font-weight: 700; background: rgba(var(--fg-rgb),.12); color: rgba(var(--fg-rgb),.8);
+    transition: transform .2s, background .2s, color .2s; }
+  .chip svg { width: 22px; height: 22px; margin-right: 10px; }
+  .chip.focus { background: var(--accent); color: var(--on-accent); transform: scale(1.08); }
+
+  #clock { position: absolute; top: 52px; right: 110px; text-align: right; font-size: 34px; font-weight: 700;
+    text-shadow: 0 2px 14px rgba(var(--bg-rgb),.5); }
+  #clock small { display: block; font-size: 20px; font-weight: 500; color: rgba(var(--fg-rgb),.65); margin-top: 4px; }
+
+  /* ---------- Rows ---------- */
+  .row { position: absolute; left: 0; right: 0; }
+  #row-apps { top: 682px; }
+  #row-src { top: 890px; }
+  .row h2 { font-size: 22px; font-weight: 700; color: rgba(var(--fg-rgb),.5); margin: 0 0 14px 110px; }
+  .track { position: relative; display: flex; padding-left: 110px; transition: transform .35s cubic-bezier(.2,.8,.2,1); }
+  .tile { position: relative; flex: 0 0 auto; width: 240px; margin-right: 36px; }
+  .sh { position: absolute; left: 8%; right: 8%; top: 30px; height: 120px; border-radius: 20px;
+    box-shadow: 0 26px 46px rgba(var(--bg-rgb),.85); opacity: 0; transition: opacity .22s; }
+  .card { position: relative; height: 144px; border-radius: 14px; background: #222;
+    display: flex; align-items: center; justify-content: center; transition: transform .22s cubic-bezier(.2,.8,.2,1); }
+  .card::after { content: ""; position: absolute; top: 0; left: 0; right: 0; bottom: 0; border-radius: inherit; opacity: 0; transition: opacity .22s;
+    background: linear-gradient(160deg, rgba(255,255,255,.26) 0%, rgba(255,255,255,0) 42%); pointer-events: none; }
+  .card > .rim { position: absolute; top: 0; left: 0; right: 0; bottom: 0; border-radius: inherit; box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.1); pointer-events: none; }
+  .clip { position: absolute; top: 0; left: 0; right: 0; bottom: 0; border-radius: inherit; overflow: hidden; }
+  .logo { height: 70px; position: relative; }
+  .word { font-size: 46px; font-weight: 800; letter-spacing: -1px; position: relative; white-space: nowrap; }
+  .glyph { width: 60px; height: 60px; position: relative; }
+  .glyph-card { background: linear-gradient(180deg, var(--surface-a), var(--surface-b)); color: var(--fg); }
+  .label { text-align: center; font-size: 22px; font-weight: 700; margin-top: 24px; opacity: 0; transition: opacity .2s; white-space: nowrap; }
+
+  .tile.focus .card { transform: scale(1.12); z-index: 2; }
+  .tile.focus .sh, .tile.focus .card::after, .tile.focus .label { opacity: 1; }
+  .tile.press .card { transform: scale(1.04); transition-duration: .1s; }
+  .tile.missing .card { opacity: .35; }
+
+  /* Sources: smaller, names always visible */
+  #row-src .tile { width: 200px; margin-right: 30px; }
+  #row-src .card { height: 96px; border-radius: 12px; }
+  #row-src .sh { top: 18px; height: 80px; }
+  #row-src .glyph { width: 46px; height: 46px; }
+  #row-src .label { opacity: .75; font-size: 20px; margin-top: 14px; transition: opacity .2s, transform .22s; }
+  #row-src .tile.focus .card { transform: scale(1.1); }
+  #row-src .tile.focus .label { opacity: 1; transform: translateY(6px); }
+
+  /* Live TV card */
+  .tile.live { width: 500px; }
+  .live .card { background: linear-gradient(135deg, #1b2a4a, #0e1424); justify-content: flex-start; align-items: flex-end; }
+  .live-img { background: center / cover no-repeat; opacity: 0; transition: opacity .5s; }
+  .live-img.on { opacity: 1; }
+  .live-grad { background: linear-gradient(90deg, rgba(5,8,16,.92) 0%, rgba(5,8,16,.72) 55%, rgba(5,8,16,.2) 100%); }
+  .live-top { position: absolute; top: 14px; left: 18px; right: 16px; display: flex; align-items: center; }
+  .pill { font-size: 14px; font-weight: 800; letter-spacing: 1.5px; padding: 5px 10px 4px; border-radius: 6px; background: #ff3b30; }
+  .pill::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #fff; margin: 0 7px 1px 0; vertical-align: middle; }
+  .ch-logo { height: 30px; margin-left: auto; filter: drop-shadow(0 1px 4px rgba(var(--bg-rgb),.6)); }
+  .live-body { position: relative; padding: 0 18px 16px; width: 100%; }
+  .live-title { font-size: 26px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -.3px; }
+  .live-meta { font-size: 17px; font-weight: 500; color: rgba(255,255,255,.7); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar { height: 4px; border-radius: 2px; background: rgba(255,255,255,.22); margin-top: 10px; overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: #fff; border-radius: 2px; }
+
+  /* ---------- Overlays ---------- */
+  .overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: var(--bg); opacity: 0; visibility: hidden;
+    transition: opacity .3s, visibility 0s .3s; z-index: 10; }
+  .overlay.open { opacity: 1; visibility: visible; transition: opacity .3s; }
+
+  #sheet-bd { background: center / cover no-repeat; opacity: .5; }
+  #sheet-shade { background: linear-gradient(90deg, var(--bg) 0%, rgba(var(--bg-rgb),.85) 45%, rgba(var(--bg-rgb),.3) 100%); }
+  #sheet-poster { position: absolute; left: 110px; top: 200px; width: 380px; height: 570px; border-radius: 16px;
+    background: #222 center / cover no-repeat; box-shadow: 0 30px 60px rgba(var(--bg-rgb),.7); }
+  #sheet-info { position: absolute; left: 560px; top: 200px; width: 1200px; }
+  #sheet-info .p { font-size: 22px; font-weight: 800; letter-spacing: 3px; text-transform: uppercase; }
+  #sheet-info .p span { color: rgba(var(--fg-rgb),.55); letter-spacing: 1px; text-transform: none; font-weight: 600; margin-left: 14px; }
+  #sheet-info h1 { font-size: 80px; font-weight: 800; letter-spacing: -2px; line-height: 1.05; margin-top: 14px; }
+  #sheet-info .m { font-size: 26px; font-weight: 500; color: rgba(var(--fg-rgb),.7); margin-top: 18px; }
+  #sheet-info .o { font-size: 26px; font-weight: 500; line-height: 1.5; color: rgba(var(--fg-rgb),.8); margin-top: 24px;
+    display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
+  #sheet-btns { margin-top: 44px; }
+  .brow { display: flex; margin-bottom: 18px; }
+  .brow:empty { display: none; }
+  /* Trailer player: a window over the sheet; the remote drives it through the parent page */
+  #trailer { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,.82); display: none; }
+  #trailer.open { display: block; }
+  #t-box { position: absolute; left: 320px; top: 90px; width: 1280px; height: 720px; border-radius: 18px; overflow: hidden; background: #000;
+    box-shadow: 0 30px 80px rgba(0,0,0,.6); }
+  #t-box iframe { width: 100%; height: 100%; border: 0; pointer-events: none; }
+  #t-bar { position: absolute; left: 320px; top: 836px; width: 1280px; color: #fff; }
+  #t-title { font-size: 28px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #t-prog { height: 6px; border-radius: 3px; background: rgba(255,255,255,.2); margin-top: 18px; overflow: hidden; }
+  #t-prog b { display: block; height: 100%; width: 100%; background: var(--accent); transform-origin: 0 0; transform: scaleX(0); }
+  #t-hint { margin-top: 20px; font-size: 22px; font-weight: 600; color: rgba(255,255,255,.7); }
+  #t-hint span { margin-right: 40px; }
+  #t-hint i { font-style: normal; }
+  #t-hint kbd { font-family: inherit; font-size: 18px; font-weight: 700; padding: 3px 9px; border-radius: 6px; background: rgba(255,255,255,.18); color: #fff; margin-right: 8px; }
+  .btn .tag { margin-left: 12px; padding: 3px 8px; border-radius: 6px; font-size: 18px; font-weight: 700; background: rgba(var(--fg-rgb),.15); }
+  .btn { height: 72px; padding: 0 32px; border-radius: 14px; margin-right: 18px; display: flex; align-items: center; flex: none; white-space: nowrap;
+    font-size: 26px; font-weight: 700; background: rgba(var(--fg-rgb),.14); transition: transform .2s, background .2s, color .2s; }
+  .btn svg { width: 28px; height: 28px; margin-right: 12px; flex: none; }
+  .btn.like.chosen { background: #30d158; color: #000; }
+  .btn.want.chosen { background: #0a84ff; color: #fff; }
+  .btn.neutral.chosen { background: #ff9f0a; color: #000; }
+  .btn.pass.chosen { background: #ff453a; color: #fff; }
+  .btn.focus { background: var(--accent); color: var(--on-accent); transform: scale(1.08); }
+  .btn.chosen.focus { box-shadow: 0 0 0 4px var(--fg); }
+
+  #picker h1, #prefs h1 { position: absolute; left: 110px; top: 90px; font-size: 56px; font-weight: 800; letter-spacing: -1px; }
+  .hint { position: absolute; left: 110px; bottom: 60px; font-size: 22px; font-weight: 500; color: rgba(var(--fg-rgb),.55); }
+  #grid { position: absolute; left: 110px; top: 220px; width: 1720px; }
+  #grid .tile { display: inline-block; vertical-align: top; margin: 0 36px 34px 0; }
+  #grid .label { opacity: .8; font-size: 20px; margin-top: 16px; }
+  #grid .tile.focus .label { opacity: 1; }
+  .check { position: absolute; top: -10px; right: -10px; width: 38px; height: 38px; border-radius: 50%; background: #30d158;
+    display: none; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(var(--bg-rgb),.5); z-index: 3; }
+  .check svg { width: 22px; height: 22px; }
+  .tile.on-home .check { display: flex; }
+
+  /* Preferences */
+  .pcol { position: absolute; top: 200px; }
+  #pcol-0 { left: 110px; width: 820px; }
+  #pcol-1 { left: 1010px; width: 800px; }
+  .pcol h2 { font-size: 22px; font-weight: 700; color: rgba(var(--fg-rgb),.5); margin-bottom: 14px; }
+  .prow { height: 58px; display: flex; align-items: center; padding: 0 10px 0 22px; border-radius: 12px; margin-bottom: 4px; }
+  .prow.cur { background: rgba(var(--fg-rgb),.08); }
+  .prow .rank { width: 34px; font-size: 20px; font-weight: 700; color: rgba(var(--fg-rgb),.4); }
+  .prow .dot { width: 14px; height: 14px; border-radius: 50%; margin-right: 16px; }
+  .prow .name { flex: 1; font-size: 26px; font-weight: 700; }
+  .again { color: #ff5c8a; }
+  .prow.off .name, .prow.off .rank { color: rgba(var(--fg-rgb),.4); }
+  .ctl { margin-left: 14px; transition: transform .18s, box-shadow .18s; }
+  .ctl.focus { transform: scale(1.12); box-shadow: 0 0 0 4px var(--accent); }
+  .sw { width: 74px; height: 40px; border-radius: 20px; background: rgba(var(--fg-rgb),.2); position: relative; transition: background .2s, transform .18s, box-shadow .18s; }
+  .sw::after { content: ""; position: absolute; top: 4px; left: 4px; width: 32px; height: 32px; border-radius: 50%; background: #fff; transition: transform .2s; }
+  .sw.on { background: var(--accent); }
+  .sw.on::after { background: var(--on-accent); }
+  .sw.on::after { transform: translateX(34px); }
+  .ab { width: 48px; height: 40px; border-radius: 10px; background: rgba(var(--fg-rgb),.12); display: flex; align-items: center; justify-content: center; }
+  .ab svg { width: 22px; height: 22px; }
+  .ab.dis { opacity: .25; }
+  .pval { min-width: 92px; justify-content: center; }
+  .swatch { display: inline-block; width: 22px; height: 22px; border-radius: 50%; margin-right: 10px; vertical-align: -4px; box-shadow: 0 0 0 2px rgba(var(--fg-rgb),.3); }
+  .pbtn { height: 44px; padding: 0 22px; border-radius: 10px; background: rgba(var(--fg-rgb),.14); font-size: 20px; font-weight: 700; display: flex; align-items: center; }
+  .prow .sub { display: block; font-size: 18px; font-weight: 500; color: rgba(var(--fg-rgb),.5); margin-top: 2px; }
+  .prow.tall { height: 82px; }
+
+  /* TV guide: channels on the left, the focused channel's programmes on the right */
+  #guide h1 { position: absolute; left: 110px; top: 70px; font-size: 56px; font-weight: 800; letter-spacing: -1px; }
+  .gcol { position: absolute; top: 190px; height: 790px; overflow: hidden; }
+  #g-ch { left: 90px; width: 560px; }
+  #g-pr { left: 690px; width: 1140px; }
+  .glist { position: relative; transition: transform .25s cubic-bezier(.2,.8,.2,1); }
+  .gc { height: 80px; display: flex; align-items: center; padding: 0 20px; border-radius: 14px; margin-bottom: 6px; }
+  .gc .lg { width: 84px; height: 48px; border-radius: 8px; background: #fff center / contain no-repeat; background-origin: content-box; padding: 5px 8px; flex: none; }
+  .gc .nm { margin-left: 18px; min-width: 0; }
+  .gc b { display: block; font-size: 24px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .gc span { display: block; font-size: 18px; font-weight: 500; color: rgba(var(--fg-rgb),.55); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+  .gc.sel { background: rgba(var(--fg-rgb),.1); }
+  .gp { display: flex; padding: 16px 22px; border-radius: 14px; margin-bottom: 4px; }
+  .gp .hr { width: 110px; flex: none; font-size: 24px; font-weight: 700; color: rgba(var(--fg-rgb),.55); padding-top: 2px; }
+  .gp .tx { flex: 1; min-width: 0; }
+  .gp b { display: block; font-size: 28px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .gp small { display: block; font-size: 19px; font-weight: 500; color: rgba(var(--fg-rgb),.55); margin-top: 3px; }
+  .gp .ds { font-size: 20px; font-weight: 500; line-height: 1.45; margin-top: 10px; color: rgba(var(--fg-rgb),.8);
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .gp:not(.focus) .ds { display: none; }
+  .gp.live .hr { color: #ff453a; }
+  .gp .bl { width: 44px; height: 44px; border-radius: 50%; flex: none; margin-left: 16px; display: none; align-items: center; justify-content: center; background: #ff9f0a; color: #000; }
+  .gp .bl svg { width: 24px; height: 24px; }
+  .gp.rem .bl { display: flex; }
+  .gday { font-size: 20px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: rgba(var(--fg-rgb),.45); padding: 18px 22px 10px; }
+  .gc.focus, .gp.focus { background: var(--accent); color: var(--on-accent); }
+  .gc.focus span, .gp.focus small, .gp.focus .hr, .gp.focus .ds { color: inherit; opacity: .75; }
+  #guide .hint { bottom: 44px; }
+
+  #toast { position: absolute; left: 50%; top: 56px; transform: translate(-50%, -30px); opacity: 0; z-index: 20;
+    background: var(--surface-b); color: var(--fg); padding: 18px 34px; border-radius: 40px; font-size: 26px; font-weight: 500; transition: transform .3s, opacity .3s; }
+  #toast.show { opacity: 1; transform: translate(-50%, 0); }
+</style>
+</head>
+<body>
+<div id="shelf">
+  <div class="bd abs" id="bdA"></div><div class="bd abs" id="bdB"></div>
+  <div id="shelf-shade" class="abs"></div>
+  <div id="shelf-dim" class="abs"></div>
+  <div id="shelf-info"><div id="s-prov"></div><div id="s-title"></div><div id="s-meta"></div><div id="s-over"></div></div>
+  <div id="dots"></div>
+</div>
+<div id="topbar"></div>
+<div id="clock"></div>
+<section class="row" id="row-apps"><div class="track"></div></section>
+<section class="row" id="row-src"><h2>Sources</h2><div class="track"></div></section>
+
+<div id="sheet" class="overlay">
+  <div id="sheet-bd" class="abs"></div><div id="sheet-shade" class="abs"></div>
+  <div id="sheet-poster"></div>
+  <div id="sheet-info"><div class="p"></div><h1></h1><div class="m"></div><div class="o"></div><div id="sheet-btns"></div></div>
+  <div id="trailer"><div id="t-box"></div>
+    <div id="t-bar"><div id="t-title"></div><div id="t-prog"><b></b></div>
+      <div id="t-hint"><span><kbd>OK</kbd> Pause</span><span><kbd>◀</kbd><kbd>▶</kbd> 10 s</span><span><kbd>▲</kbd><kbd>▼</kbd> <i id="t-cc">Sous-titres</i></span><span><kbd>Retour</kbd> Fermer</span></div></div>
+  </div>
+</div>
+<div id="picker" class="overlay">
+  <h1>Apps de l'accueil</h1>
+  <div id="grid"></div>
+  <div class="hint">OK pour ajouter ou retirer · Retour pour terminer · Une app manque ? Ouvre-la une fois depuis l'accueil LG.</div>
+</div>
+<div id="prefs" class="overlay">
+  <h1>Préférences</h1>
+  <div class="pcol" id="pcol-0"></div>
+  <div class="pcol" id="pcol-1"></div>
+  <div class="hint">Un titre dispo sur plusieurs plateformes est proposé sur la première de la liste · Retour pour terminer</div>
+</div>
+<div id="guide" class="overlay">
+  <h1>Guide TV</h1>
+  <div class="gcol" id="g-ch"><div class="glist"></div></div>
+  <div class="gcol" id="g-pr"><div class="glist"></div></div>
+  <div class="hint">OK sur une chaîne pour la regarder · OK sur un programme à venir pour un rappel · Retour pour fermer</div>
+</div>
+<div id="toast"></div>
+
+<script src="config.js"></script>
+<script src="apps.js"></script>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var GLYPHS = {
+    film: '<rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M10.5 9.5v5l4-2.5z"/>',
+    tv: '<rect x="2.5" y="4" width="19" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>',
+    hdmi: '<path d="M3 8h18v5l-3 3H6l-3-3z"/><path d="M7.5 11.5h9"/>',
+    web: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3.2 3.5 3.2 14.5 0 18M12 3c-3.2 3.5-3.2 14.5 0 18"/>',
+    gear: '<circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="6.5"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    play: '<path d="M7 4.5v15l12-7.5z" fill="currentColor" stroke="none"/>',
+    heart: '<path d="M12 20s-7-4.3-9-8.7C1.6 8.1 3.7 4.5 7.1 4.5c2 0 3.4 1 4.9 2.8 1.5-1.8 2.9-2.8 4.9-2.8 3.4 0 5.5 3.6 4.1 6.8C19 15.7 12 20 12 20z"/>',
+    cross: '<path d="M6 6l12 12M18 6L6 18"/>',
+    check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+    shuffle: '<path d="M3 7h3.5c4.5 0 6.5 10 11 10H21M3 17h3.5c1.8 0 3.1-1.6 4.2-3.5M13.3 10.5C14.4 8.6 15.7 7 17.5 7H21M18 4l3 3-3 3M18 14l3 3-3 3"/>',
+    up: '<path d="M6 15l6-6 6 6"/>',
+    bookmark: '<path d="M6.5 3.5h11v17L12 16.8l-5.5 3.7z"/>',
+    neutral: '<circle cx="12" cy="12" r="8.5"/><path d="M8 12h8"/>',
+    down: '<path d="M6 9l6 6 6-6"/>',
+    bell: '<path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 1.5h-15zM10 20.5h4"/>'
+  };
+  function glyph(name, color, width) {
+    return '<svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="' + (color || "currentColor") + '" stroke-width="' + (width || 1.6) +
+      '" stroke-linecap="round" stroke-linejoin="round">' + GLYPHS[name] + '</svg>';
+  }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function el(html) { var d = document.createElement("div"); d.innerHTML = html; return d.firstChild; }
+  function cache(key, val) {
+    try { if (val === undefined) return JSON.parse(localStorage.getItem("home." + key)); localStorage.setItem("home." + key, JSON.stringify(val)); } catch (e) {}
+    return null;
+  }
+  function get(path) {
+    return Promise.race([
+      fetch(window.SERVER + path).then(function (r) { return r.json(); }),
+      new Promise(function (_, rej) { setTimeout(function () { rej(new Error("timeout")); }, 5000); })
+    ]);
+  }
+  function send(method, path, body) {
+    return fetch(window.SERVER + path, { method: method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) })
+      .then(function (r) { return r.json(); });
+  }
+  function toast(msg) {
+    var t = $("toast"); t.textContent = msg; t.classList.add("show");
+    clearTimeout(toast.t); toast.t = setTimeout(function () { t.classList.remove("show"); }, 2400);
+  }
+
+  // ---------- App styles ----------
+  function styleFor(id) {
+    for (var i = 0; i < APP_STYLES.length; i++) if (APP_STYLES[i].match.test(id)) return APP_STYLES[i];
+    var parts = id.split(/[.\-_]/).filter(function (p) { return !/^(com|tv|app|apps|lg|webos|prod|leanback|v\d+)$/i.test(p); });
+    var name = (parts.sort(function (a, b) { return b.length - a.length; })[0] || id);
+    name = name.charAt(0).toUpperCase() + name.slice(1);
+    return { name: name, word: name, tile: "linear-gradient(180deg,#3a3b40,#26272b)" };
+  }
+  function face(s) {
+    if (s.logo) return '<img class="logo" src="' + s.logo + '" style="' + (s.logoWidth ? "width:" + s.logoWidth + "%;height:auto" : "height:" + 70 * (s.logoScale || 1) + "px") + '">';
+    if (s.word) return '<div class="word" style="color:' + (s.fg || "#fff") + ';font-size:' + Math.min(46, 300 / Math.max(4, s.word.length)) + 'px">' + esc(s.word) + "</div>";
+    return glyph(s.glyph);
+  }
+  function tileHtml(s, cls, cardStyle) {
+    return '<div class="tile ' + (cls || "") + '"><div class="sh"></div><div class="card' + (s.glyph ? " glyph-card" : "") + '"' +
+      (cardStyle ? ' style="background:' + cardStyle + '"' : "") + ">" + face(s) + '<div class="rim"></div><div class="check">' + glyph("check", "#fff", 3) + "</div></div>" +
+      '<div class="label">' + esc(s.name) + "</div></div>";
+  }
+
+  // ---------- Launch ----------
+  function launch(id, tile, name) {
+    if (tile) { tile.classList.add("press"); setTimeout(function () { tile.classList.remove("press"); }, 140); }
+    if (typeof PalmServiceBridge === "undefined") { toast("Lancement : " + id); return; }
+    var bridge = new PalmServiceBridge();
+    bridge.onservicecallback = function (raw) {
+      var res = {}; try { res = JSON.parse(raw); } catch (e) {}
+      if (res.returnValue === false) { if (tile) tile.classList.add("missing"); toast((name || id) + " n'est pas installée"); }
+    };
+    bridge.call("luna://com.webos.applicationManager/launch", JSON.stringify({ id: id }));
+  }
+
+  // ---------- State ----------
+  var homeApps = cache("apps") || DEFAULT_APPS.slice();
+  var seenApps = cache("seen") || [];
+  var pool = cache("pool") || [], movies = cache("movies") || [], movieIdx = 0, moviesError = null;
+  var prefs = cache("prefs") || { providers: [], homeRedirect: false, autoRefresh: true };
+  var live = cache("live");
+  var R_TOP = 0, R_SHELF = 1, R_APPS = 2, R_SRC = 3;
+  var rows = [[], [], [], []];
+  var pos = { r: R_APPS, c: 1 }, mode = "home", focused = null, lastAppsPos = { r: R_APPS, c: 1 };
+
+  // ---------- Top bar ----------
+  function buildTopbar() {
+    var bar = $("topbar");
+    [{ icon: "shuffle", text: "Nouvelles suggestions", act: function () { newBatch(); toast("Nouvelles suggestions"); } },
+     { icon: "tv", text: "Guide TV", act: openGuide },
+     { icon: "gear", text: "Préférences", act: openPrefs }].forEach(function (d) {
+      var c = el('<div class="chip">' + glyph(d.icon, "currentColor", 2) + esc(d.text) + "</div>");
+      bar.appendChild(c); rows[R_TOP].push({ el: c, act: d.act });
+    });
+    wirePointer(R_TOP);
+  }
+
+  // ---------- Rows ----------
+  function liveHtml() {
+    return '<div class="tile live"><div class="sh"></div><div class="card"><div class="clip">' +
+      '<div class="live-img abs"></div><div class="live-grad abs"></div>' +
+      '<div class="live-top"><span class="pill">EN DIRECT</span><img class="ch-logo" style="display:none"></div></div>' +
+      '<div class="live-body"><div class="live-title">TV en direct</div><div class="live-meta">Chaînes TNT</div><div class="bar"><i></i></div></div>' +
+      '<div class="rim"></div></div><div class="label">TV en direct</div></div>';
+  }
+  function buildApps() {
+    var track = document.querySelector("#row-apps .track");
+    track.innerHTML = "";
+    rows[R_APPS] = [];
+    var lt = el(liveHtml()); track.appendChild(lt);
+    rows[R_APPS].push({ el: lt, act: function () { launch("com.webos.app.livetv", lt, "TV"); } });
+    homeApps.forEach(function (id) {
+      var s = styleFor(id), t = el(tileHtml(s, "", s.tile));
+      track.appendChild(t);
+      rows[R_APPS].push({ el: t, act: function () { launch(id, t, s.name); } });
+    });
+    var add = el(tileHtml({ name: "Ajouter", glyph: "plus" }));
+    track.appendChild(add);
+    rows[R_APPS].push({ el: add, act: openPicker });
+    paintLive();
+    wirePointer(R_APPS);
+  }
+  function buildSources() {
+    var track = document.querySelector("#row-src .track");
+    SOURCES.forEach(function (s) {
+      var t = el(tileHtml(s));
+      track.appendChild(t);
+      rows[R_SRC].push({ el: t, act: function () { launch(s.id, t, s.name); } });
+    });
+    wirePointer(R_SRC);
+  }
+  // Magic Remote pointer
+  function wirePointer(r) {
+    rows[r].forEach(function (item, c) {
+      item.el.onmouseenter = function () { if (mode === "home") { pos = { r: r, c: c }; render(); } };
+      item.el.onclick = function () { if (mode === "home") item.act(); };
+    });
+  }
+
+  // ---------- Theme ----------
+  // A theme is just a background + an accent (+ light/dark); everything else is derived.
+  function rgb(hex) { var n = parseInt(hex.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
+  function mix(a, b, t) { var x = rgb(a), y = rgb(b); return "rgb(" + [0, 1, 2].map(function (i) { return Math.round(x[i] + (y[i] - x[i]) * t); }).join(",") + ")"; }
+  function luminance(hex) { var c = rgb(hex); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; }
+  function themeColors(t) {
+    var preset = null;
+    (prefs.themes || []).forEach(function (p) { if (p.key === t.name) preset = p; });
+    var base = t.name === "custom" ? t : preset || { bg: "#000000", accent: "#ffffff", light: false };
+    var fg = base.light ? "#1d1d1f" : "#ffffff";
+    return {
+      "--bg": base.bg, "--bg-rgb": rgb(base.bg).join(","), "--bg2": mix(base.bg, base.accent, base.light ? 0.28 : 0.22),
+      "--fg": fg, "--fg-rgb": rgb(fg).join(","), "--accent": base.accent, "--on-accent": luminance(base.accent) > 0.6 ? "#000000" : "#ffffff",
+      "--surface-a": mix(base.bg, fg, base.light ? 0.22 : 0.3), "--surface-b": mix(base.bg, fg, base.light ? 0.1 : 0.17)
+    };
+  }
+  function applyTheme() {
+    var vars = themeColors(prefs.theme || { name: "nuit" }), root = document.documentElement;
+    Object.keys(vars).forEach(function (k) { root.style.setProperty(k, vars[k]); });
+  }
+  function themeName() {
+    var t = prefs.theme || { name: "nuit" };
+    if (t.name === "custom") return "Perso";
+    var n = "Nuit"; (prefs.themes || []).forEach(function (p) { if (p.key === t.name) n = p.name; });
+    return n;
+  }
+
+  // ---------- Live TV card ----------
+  function hhmm(t) { var d = new Date(t); return ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2); }
+  function paintLive() {
+    var card = rows[R_APPS][0] && rows[R_APPS][0].el; if (!card) return;
+    var q = function (s) { return card.querySelector(s); };
+    var now = live && live.now, ch = live && live.channel, t = Date.now();
+    if (now && now.stop < t && live.next) now = live.next; // guide moved on since last fetch
+    q(".live-title").textContent = now ? now.title : ch ? ch.name : "TV en direct";
+    q(".live-meta").textContent = ch ? [ch.number, ch.name, now ? hhmm(now.start) + " – " + hhmm(now.stop) : ""].filter(Boolean).join("  ·  ") : "Chaînes TNT";
+    q(".bar i").style.width = now ? Math.max(0, Math.min(100, (t - now.start) / (now.stop - now.start) * 100)) + "%" : "0";
+    q(".bar").style.visibility = now ? "visible" : "hidden";
+    var logo = q(".ch-logo");
+    if (ch && ch.logo) { if (logo.getAttribute("src") !== ch.logo) logo.src = ch.logo; logo.style.display = ""; } else logo.style.display = "none";
+    var img = q(".live-img"), src = now && now.image;
+    if (src && img.getAttribute("data-src") !== src) {
+      var pre = new Image();
+      pre.onload = function () { img.style.backgroundImage = "url(" + src + ")"; img.setAttribute("data-src", src); img.classList.add("on"); };
+      pre.src = src;
+    } else if (!src) img.classList.remove("on");
+  }
+  function refreshLive() { get("/api/live").then(function (d) { live = d; cache("live", d); paintLive(); }).catch(function () {}); }
+
+  // ---------- Suggestions ----------
+  var BATCH = 8, NEW_BATCH_MS = 5 * 60000, ROTATE_CHOICES = [10, 15, 20, 30, 60];
+  var lastBatchAt = Date.now(), rotTimer = null;
+  function rotateMs() { return (prefs.rotateSeconds || 10) * 1000; }
+
+  // Seasonal picks ("Spécial Halloween") and off-platform ones get a couple of slots each per batch,
+  // a liked title to watch again gets one
+  var EXTRA_SLOTS = 2;
+  function group(m) { return m.rewatch ? "rewatch" : m.season ? "season" : m.provider ? "main" : "off"; }
+  // Weighted draw of n titles: better-ranked ones are likelier
+  function draw(cands, n) {
+    var picked = [], weights = cands.map(function (_, i) { return 1 / (1 + i * 0.12); });
+    while (picked.length < n && cands.length) {
+      var total = weights.reduce(function (a, b) { return a + b; }, 0), x = Math.random() * total, k = 0;
+      while (k < weights.length - 1 && x > weights[k]) { x -= weights[k]; k++; }
+      picked.push(cands[k]); cands.splice(k, 1); weights.splice(k, 1);
+    }
+    return picked;
+  }
+  // Pick a fresh batch from the pool, avoiding a repeat of the current batch
+  function newBatch() {
+    var shown = {}; movies.forEach(function (m) { shown[m.key] = 1; });
+    var cands = pool.filter(function (m) { return !shown[m.key]; });
+    if (cands.length < BATCH) cands = pool.slice();
+    var of = function (g) { return cands.filter(function (m) { return group(m) === g; }); };
+    var extra = draw(of("season"), EXTRA_SLOTS).concat(draw(of("off"), EXTRA_SLOTS), draw(of("rewatch"), 1));
+    var picked = draw(of("main"), BATCH - extra.length);
+    // Spread the extras through the batch, never in first position
+    extra.forEach(function (m) { picked.splice(1 + Math.floor(Math.random() * picked.length), 0, m); });
+    movies = picked; movieIdx = 0; lastBatchAt = Date.now();
+    cache("movies", movies); paintShelf();
+  }
+  function step(dir) {
+    if (movies.length < 2) return;
+    movieIdx = (movieIdx + dir + movies.length) % movies.length;
+    paintShelf();
+  }
+
+  var bdFront = $("bdA"), bdBack = $("bdB");
+  // White brand colours (Canal+, Apple TV+…) follow the theme's text colour so they stay readable on light themes
+  function provColor(p) { return !p || /^#f{3}(f{3})?$/i.test(p.color) ? "" : p.color; }
+  function provLine(m) {
+    var where = m.provider ? esc("Sur " + m.provider.name) : '<span class="offp">Hors de tes plateformes</span>';
+    if (m.rewatch) return '<span class="again">♥ À revoir</span>  ·  ' + where;
+    return (m.season ? '<span style="color:' + esc(m.season.color) + '">' + esc(m.season.label) + "</span>  ·  " : "") + where;
+  }
+  function metaHtml(m) {
+    return [m.type === "tv" ? "Série" : "Film", esc(m.year), esc(m.genres.join(", ")), m.vote ? '<span class="star">★</span> ' + m.vote.toFixed(1) : ""].filter(Boolean).join("  ·  ");
+  }
+  function paintShelf(instant) {
+    var info = $("shelf-info"), m = movies[movieIdx];
+    $("dots").innerHTML = movies.map(function (_, i) { return '<i class="' + (i === movieIdx ? "on" : "") + '"><b></b></i>'; }).join("");
+    scheduleRotate();
+    info.classList.add("swap");
+    clearTimeout(paintShelf.t);
+    paintShelf.t = setTimeout(function () {
+      if (m) {
+        $("s-prov").innerHTML = provLine(m);
+        $("s-prov").style.color = provColor(m.provider);
+        $("s-title").textContent = m.title;
+        $("s-meta").innerHTML = metaHtml(m);
+        $("s-over").textContent = m.overview;
+      } else {
+        $("s-prov").textContent = ""; $("s-title").textContent = "Suggestions"; $("s-meta").textContent = "";
+        $("s-over").textContent = moviesError === "no-provider" ? "Active au moins une plateforme dans Préférences."
+          : "Note des films depuis ton téléphone sur " + window.SERVER.replace("http://", "") + " pour recevoir des suggestions à ton goût.";
+      }
+      info.classList.remove("swap");
+    }, instant ? 0 : 200);
+    var src = m && m.backdrop;
+    if (!src) { bdFront.classList.remove("on"); return; }
+    if (bdFront.getAttribute("data-src") === src) return;
+    var pre = new Image();
+    pre.onload = function () {
+      if (movies[movieIdx] !== m) return;
+      bdBack.style.backgroundImage = "url(" + src + ")"; bdBack.setAttribute("data-src", src);
+      bdBack.classList.add("on"); bdFront.classList.remove("on");
+      var tmp = bdFront; bdFront = bdBack; bdBack = tmp;
+      var nx = movies[(movieIdx + 1) % movies.length]; if (nx) new Image().src = nx.backdrop; // warm the next one
+    };
+    pre.src = src;
+  }
+  function refreshPool(forceBatch) {
+    return get("/api/suggestions").then(function (d) {
+      moviesError = d.error || null;
+      pool = d.items || []; cache("pool", pool);
+      var ids = {}; pool.forEach(function (m) { ids[m.key] = m; });
+      // Keep the current batch if still valid (fresh provider info), refilling titles that left the pool
+      // with ones of the same kind (seasonal, off-platform, main); otherwise draw a new one
+      var kept = movies.map(function (m) { return ids[m.key] || null; });
+      var left = kept.filter(Boolean).length;
+      if (forceBatch || left < Math.min(4, pool.length)) return newBatch();
+      var shown = {}; kept.forEach(function (m) { if (m) shown[m.key] = 1; });
+      movies = kept.map(function (m, i) {
+        if (m) return m;
+        var g = group(movies[i]), fresh = pool.filter(function (x) { return !shown[x.key] && group(x) === g; });
+        if (!fresh.length) fresh = pool.filter(function (x) { return !shown[x.key] && group(x) === "main"; });
+        var pick = draw(fresh, 1)[0];
+        if (pick) shown[pick.key] = 1;
+        return pick || null;
+      }).filter(Boolean);
+      while (movies.length < Math.min(BATCH, pool.length)) {
+        var more = draw(pool.filter(function (x) { return !shown[x.key] && group(x) === "main"; }), 1)[0];
+        if (!more) break;
+        shown[more.key] = 1; movies.push(more);
+      }
+      if (movieIdx >= movies.length) movieIdx = 0;
+      cache("movies", movies); paintShelf();
+    }).catch(function () {});
+  }
+  // A rated title leaves the batch and a fresh one from the pool takes its slot
+  function dropMovie(key) {
+    pool = pool.filter(function (x) { return x.key !== key; });
+    cache("pool", pool);
+    var at = -1;
+    movies.forEach(function (x, i) { if (x.key === key) at = i; });
+    if (at < 0) return;
+    var shown = {}; movies.forEach(function (x) { shown[x.key] = 1; });
+    var fresh = pool.filter(function (x) { return !shown[x.key]; });
+    if (fresh.length) movies[at] = fresh[Math.floor(Math.random() * Math.min(8, fresh.length))]; // among the best-ranked left
+    else movies.splice(at, 1);
+    if (movieIdx >= movies.length) movieIdx = 0;
+    cache("movies", movies); paintShelf();
+  }
+
+  // Auto-advance after the chosen delay (the active dot fills up meanwhile); new batch every 5 min if enabled.
+  // Any repaint of the shelf, manual or not, restarts the countdown.
+  function scheduleRotate() {
+    clearTimeout(rotTimer);
+    var fill = document.querySelector("#dots i.on b");
+    if (fill) { fill.style.transition = "none"; fill.style.transform = "scaleX(0)"; }
+    if (mode !== "home" || document.hidden || movies.length < 2) return;
+    if (fill) { void fill.offsetWidth; fill.style.transition = "transform " + rotateMs() + "ms linear"; fill.style.transform = "scaleX(1)"; }
+    rotTimer = setTimeout(function () {
+      if (prefs.autoRefresh && Date.now() - lastBatchAt > NEW_BATCH_MS && pos.r !== R_SHELF) newBatch(); else step(1);
+    }, rotateMs());
+  }
+  var ovlTimer = null;
+  function setOverlay(name, open) {
+    $(name).classList.toggle("open", open);
+    clearTimeout(ovlTimer);
+    if (open) { ovlTimer = setTimeout(function () { document.body.classList.add("ovl"); }, 320); clearTimeout(rotTimer); }
+    else { document.body.classList.remove("ovl"); scheduleRotate(); }
+  }
+
+  // ---------- Focus / render ----------
+  function render() {
+    var item = pos.r !== R_SHELF ? rows[pos.r][pos.c] : null;
+    if (focused && focused !== item) focused.el.classList.remove("focus");
+    if (item) item.el.classList.add("focus");
+    focused = item;
+    document.body.classList.toggle("on-shelf", pos.r === R_SHELF);
+    document.body.classList.toggle("on-top", pos.r === R_TOP);
+    if (item && pos.r >= R_APPS) {
+      var track = item.el.parentNode, over = item.el.offsetLeft + item.el.offsetWidth - (1920 - 110);
+      track.style.transform = "translateX(" + (over > 0 ? -over : 0) + "px)";
+      cache("pos", pos);
+    }
+  }
+  function nearest(r) {
+    if (!focused) return Math.min(pos.c, rows[r].length - 1);
+    var b = focused.el.getBoundingClientRect(), x = b.left + b.width / 2, best = 0, bestD = 1e9;
+    rows[r].forEach(function (it, c) {
+      var bb = it.el.getBoundingClientRect(), d = Math.abs(bb.left + bb.width / 2 - x);
+      if (d < bestD) { bestD = d; best = c; }
+    });
+    return best;
+  }
+  function homeKey(k) {
+    var r = pos.r;
+    if (k === 461) { pos = r >= R_APPS ? { r: R_APPS, c: 1 } : lastAppsPos; }
+    else if (r === R_SHELF) {
+      if (k === 37 || k === 39) { step(k === 39 ? 1 : -1); return; }
+      if (k === 38) pos = { r: R_TOP, c: 0 };
+      else if (k === 40) pos = lastAppsPos;
+      else if (k === 13) { if (movies[movieIdx]) openSheet(movies[movieIdx]); return; }
+      else return;
+    }
+    else if (k === 37) { if (pos.c > 0) pos.c--; }
+    else if (k === 39) { if (pos.c < rows[r].length - 1) pos.c++; }
+    else if (k === 38) {
+      if (r === R_APPS) { lastAppsPos = { r: R_APPS, c: pos.c }; pos = { r: R_SHELF, c: 0 }; }
+      else if (r === R_SRC) pos = { r: R_APPS, c: nearest(R_APPS) };
+      else return;
+    }
+    else if (k === 40) {
+      if (r === R_TOP) pos = { r: R_SHELF, c: 0 };
+      else if (r === R_APPS) pos = { r: R_SRC, c: nearest(R_SRC) };
+      else return;
+    }
+    else if (k === 13) { rows[r][pos.c].act(); return; }
+    render();
+  }
+
+  // ---------- Movie sheet (stays open after rating) ----------
+  var sheetBtns = [], sheetIdx = 0, sheetMovie = null, sheetVerdict = null;
+  function openSheet(m) {
+    sheetMovie = m; sheetVerdict = m.rating || null;
+    $("sheet-bd").style.backgroundImage = m.backdrop ? "url(" + m.backdrop + ")" : "";
+    $("sheet-poster").style.backgroundImage = m.poster ? "url(" + m.poster + ")" : "";
+    var info = $("sheet-info"), p = m.provider;
+    info.querySelector(".p").innerHTML = provLine(m) + (p && p.also && p.also.length ? "<span>aussi sur " + esc(p.also.join(", ")) + "</span>" : "");
+    info.querySelector(".p").style.color = provColor(p);
+    info.querySelector("h1").textContent = m.title;
+    info.querySelector(".m").innerHTML = metaHtml(m);
+    info.querySelector(".o").textContent = m.overview;
+    var defs = [];
+    if (p && p.app) defs.push({ row: 0, cls: "", icon: "play", text: "Regarder", act: function () { watch(m, p); } });
+    // Same order as the phone, Tinder-style: negative on the left, positive on the right
+    defs.push({ row: 1, cls: "pass", icon: "cross", text: "Passe", act: function () { rateMovie("pass"); } });
+    defs.push({ row: 1, cls: "neutral", icon: "neutral", text: "Neutre", act: function () { rateMovie("neutral"); } });
+    defs.push({ row: 1, cls: "want", icon: "bookmark", text: "Intéressé", act: function () { rateMovie("want"); } });
+    defs.push({ row: 1, cls: "like", icon: "heart", text: "J'aime", act: function () { rateMovie("like"); } });
+    // Two rows: watch / trailer on top, the verdicts below
+    $("sheet-btns").innerHTML = '<div class="brow"></div><div class="brow"></div>'; sheetBtns = [];
+    defs.forEach(function (d) { addSheetBtn(d, sheetBtns.length); });
+    sheetIdx = 0; paintSheet();
+    mode = "sheet"; setOverlay("sheet", true);
+    // The trailer button appears once the server has found one, right after "Regarder"
+    fetch(window.SERVER + "/api/trailer?type=" + m.type + "&id=" + m.id).then(function (r) { return r.json(); }).then(function (r) {
+      var t = r.trailer;
+      if (!t || sheetMovie !== m || mode !== "sheet") return;
+      var at = sheetBtns.filter(function (b) { return b.row === 0; }).length;
+      addSheetBtn({ row: 0, cls: "", icon: "film", text: "Bande-annonce", tag: t.lang, act: function () { playTrailer(t); } }, at);
+      tBtn = sheetBtns[at];
+      if (sheetIdx >= at) sheetIdx++;
+      paintSheet();
+    }).catch(function () {});
+  }
+  function addSheetBtn(d, at) {
+    var b = el('<div class="btn ' + d.cls + '">' + glyph(d.icon, "currentColor", 2.2) + esc(d.text) + (d.tag ? '<span class="tag">' + esc(d.tag) + "</span>" : "") + "</div>");
+    var row = d.row || 0, entry = { el: b, act: d.act, cls: d.cls, row: row };
+    b.onmouseenter = function () { sheetIdx = sheetBtns.indexOf(entry); paintSheet(); };
+    b.onclick = d.act;
+    var box = $("sheet-btns").children[row], before = sheetBtns[at];
+    box.insertBefore(b, before && before.row === row ? before.el : null);
+    sheetBtns.splice(at, 0, entry);
+  }
+  // ---------- Trailer player (YouTube page from the server, in an iframe; YouTube refuses file:// embeds) ----------
+  var trailerOn = false, tState = null, tTimer = null, tCc = false, tCur = null, tTries = 0, tBtn = null;
+  function playTrailer(t, tries) {
+    tCur = t; tTries = tries || 0;
+    trailerOn = true; mode = "trailer"; tState = { at: 0, len: 0, playing: false, since: Date.now() };
+    // French subtitles by default only when the trailer is in the original language (VOST ones have them burned in)
+    tCc = t.lang === "VO"; paintCc();
+    $("t-title").textContent = sheetMovie.title + "  ·  Bande-annonce " + t.lang;
+    $("t-box").innerHTML = '<iframe allow="autoplay; encrypted-media" tabindex="-1" src="' + window.SERVER + "/player?v=" + encodeURIComponent(t.key) + (tCc ? "&cc=1" : "") + '"></iframe>';
+    $("trailer").classList.add("open"); paintProgress();
+    clearInterval(tTimer); tTimer = setInterval(paintProgress, 500);
+  }
+  // 101/150: the owner forbids embedding. The server picks another video; with none left, the button offers YouTube's own app.
+  function trailerFailed(code) {
+    var t = tCur, movie = sheetMovie, tries = tTries;
+    closeTrailer();
+    if (code !== 101 && code !== 150) { toast("Bande-annonce indisponible ici"); return; }
+    fetch(window.SERVER + "/api/trailer?type=" + movie.type + "&id=" + movie.id + "&blocked=" + encodeURIComponent(t.key)).then(function (r) { return r.json(); }).then(function (r) {
+      var n = r.trailer;
+      if (sheetMovie !== movie || mode !== "sheet") return;
+      if (n && n.key !== t.key && tries < 3) {
+        // The sheet button holds this object, so it plays the new video next time too
+        t.key = n.key; t.lang = n.lang; t.name = n.name;
+        playTrailer(t, tries + 1);
+      } else offerYoutube(t.key);
+    }).catch(function () { offerYoutube(t.key); });
+  }
+  function offerYoutube(key) {
+    toast("YouTube bloque cette bande-annonce ici");
+    if (!tBtn || sheetBtns.indexOf(tBtn) < 0) return;
+    tBtn.el.innerHTML = glyph("film", "currentColor", 2.2) + "Voir sur YouTube";
+    tBtn.act = tBtn.el.onclick = function () { youtubeApp(key); };
+  }
+  function youtubeApp(key) {
+    if (typeof PalmServiceBridge === "undefined") return;
+    new PalmServiceBridge().call("luna://com.webos.applicationManager/launch", JSON.stringify({ id: "youtube.leanback.v4", params: { contentTarget: "v=" + key } }));
+  }
+  function closeTrailer() {
+    trailerOn = false; mode = "sheet"; clearInterval(tTimer);
+    $("t-box").innerHTML = ""; $("trailer").classList.remove("open");
+    window.focus();
+  }
+  function tellPlayer(msg) { var f = $("t-box").querySelector("iframe"); if (f) f.contentWindow.postMessage(msg, "*"); }
+  // Progress is extrapolated between player reports
+  function paintProgress() {
+    var st = tState, at = st.at + (st.playing ? (Date.now() - st.since) / 1000 : 0);
+    $("t-prog").firstChild.style.transform = "scaleX(" + (st.len ? Math.min(1, at / st.len) : 0) + ")";
+  }
+  window.addEventListener("message", function (e) {
+    var m = e.data || {};
+    if (!trailerOn || !m.player) return;
+    if (m.player === "ended") { closeTrailer(); return; }
+    if (m.player === "error") { trailerFailed(m.code); return; }
+    if (m.player === "cc") { tCc = m.on; paintCc(m.label === "aucun" ? "Pas de sous-titres" : ""); return; }
+    if (m.len) tState = { at: m.at, len: m.len, playing: m.player === "playing" || !!m.playing, since: Date.now() };
+    paintProgress();
+  });
+  // Keep the remote's keys on our page even if the player grabs focus
+  window.addEventListener("blur", function () { if (trailerOn) setTimeout(function () { window.focus(); }, 0); });
+  function paintCc(note) {
+    $("t-cc").textContent = note || "Sous-titres : " + (tCc ? "activés" : "désactivés");
+  }
+  function trailerKey(k) {
+    if (k === 461) closeTrailer();
+    else if (k === 38 || k === 40) { tCc = !tCc; paintCc(); tellPlayer({ cmd: "cc", on: tCc }); }
+    else if (k === 13) tellPlayer({ cmd: "toggle" });
+    else if (k === 37 || k === 39) tellPlayer({ cmd: "seek", by: k === 37 ? -10 : 10 });
+    if (k === 37 || k === 39) setTimeout(function () { tellPlayer({ cmd: "time" }); }, 300);
+  }
+  function paintSheet() {
+    sheetBtns.forEach(function (b, i) {
+      b.el.classList.toggle("focus", i === sheetIdx);
+      b.el.classList.toggle("chosen", !!b.cls && b.cls === sheetVerdict);
+    });
+  }
+  function rateMovie(verdict) {
+    var m = sheetMovie, next = sheetVerdict === verdict ? "clear" : verdict; // pressing again undoes
+    sheetVerdict = next === "clear" ? null : next;
+    // Remember it locally too, so reopening the sheet before the next pool refresh shows it
+    pool.concat(movies).forEach(function (x) { if (x.key === m.key) x.rating = sheetVerdict; });
+    m.rating = sheetVerdict; cache("pool", pool); cache("movies", movies);
+    paintSheet();
+    send("POST", "/api/rate", { id: m.id, type: m.type, verdict: next, title: m.title, genre_ids: m.genre_ids, poster: m.poster })
+      .catch(function () { toast("Serveur injoignable, note non enregistrée"); });
+  }
+  function closeSheet() {
+    mode = "home"; setOverlay("sheet", false);
+    // Seen titles (liked, neutral, passed) leave the shelf; "Intéressé" ones stay
+    if (sheetVerdict === "like" || sheetVerdict === "neutral" || sheetVerdict === "pass") { dropMovie(sheetMovie.key); setTimeout(function () { refreshPool(false); }, 5000); }
+  }
+  function sheetKey(k) {
+    var cur = sheetBtns[sheetIdx], same = function (i) { return sheetBtns[i] && sheetBtns[i].row === cur.row; };
+    if (k === 37 && same(sheetIdx - 1)) sheetIdx--;
+    else if (k === 39 && same(sheetIdx + 1)) sheetIdx++;
+    else if (k === 38 || k === 40) {
+      // Other row, same column as far as it goes
+      var col = sheetBtns.filter(function (b, i) { return b.row === cur.row && i < sheetIdx; }).length;
+      var other = [];
+      sheetBtns.forEach(function (b, i) { if (b.row === (k === 38 ? 0 : 1) && b.row !== cur.row) other.push(i); });
+      if (other.length) sheetIdx = other[Math.min(col, other.length - 1)];
+    }
+    else if (k === 13) { sheetBtns[sheetIdx].act(); return; }
+    else if (k === 461) { closeSheet(); return; }
+    paintSheet();
+  }
+
+  // ---------- App picker ----------
+  var pick = [], pickIdx = 0, PICK_COLS = 6;
+  function openPicker() {
+    var ids = [];
+    homeApps.concat(DEFAULT_APPS, seenApps).forEach(function (id) { if (ids.indexOf(id) < 0 && !HIDDEN_APPS.test(id)) ids.push(id); });
+    var grid = $("grid"); grid.innerHTML = ""; pick = [];
+    ids.forEach(function (id, i) {
+      var s = styleFor(id), t = el(tileHtml(s, homeApps.indexOf(id) >= 0 ? "on-home" : "", s.tile));
+      t.onmouseenter = function () { pickIdx = i; paintPicker(); };
+      t.onclick = function () { togglePick(i); };
+      grid.appendChild(t); pick.push({ id: id, el: t });
+    });
+    pickIdx = 0; paintPicker();
+    mode = "picker"; setOverlay("picker", true);
+  }
+  function paintPicker() { pick.forEach(function (p, i) { p.el.classList.toggle("focus", i === pickIdx); }); }
+  function togglePick(i) {
+    var id = pick[i].id, at = homeApps.indexOf(id);
+    if (at >= 0) homeApps.splice(at, 1); else homeApps.push(id);
+    pick[i].el.classList.toggle("on-home", at < 0);
+  }
+  function closePicker() {
+    mode = "home"; setOverlay("picker", false);
+    cache("apps", homeApps);
+    send("PUT", "/api/apps", { apps: homeApps }).catch(function () {});
+    buildApps();
+    pos = { r: R_APPS, c: rows[R_APPS].length - 1 }; focused = null; render();
+  }
+  function pickerKey(k) {
+    if (k === 37 && pickIdx > 0) pickIdx--;
+    else if (k === 39 && pickIdx < pick.length - 1) pickIdx++;
+    else if (k === 38 && pickIdx >= PICK_COLS) pickIdx -= PICK_COLS;
+    else if (k === 40 && pickIdx + PICK_COLS < pick.length) pickIdx += PICK_COLS;
+    else if (k === 13) togglePick(pickIdx);
+    else if (k === 461) { closePicker(); return; }
+    paintPicker();
+  }
+
+  // ---------- Preferences ----------
+  // Two columns of rows; each row has controls the D-pad moves across
+  var pcols = [[], []], pf = { col: 0, row: 0, ctl: 0 }, providersDirty = false;
+  function sw(on) { return '<div class="ctl sw' + (on ? " on" : "") + '"></div>'; }
+  function buildPrefs() {
+    var c0 = $("pcol-0"), c1 = $("pcol-1");
+    c0.innerHTML = "<h2>Mes plateformes, par priorité</h2>"; c1.innerHTML = "<h2>Options</h2>";
+    pcols = [[], []];
+    var n = prefs.providers.length;
+    prefs.providers.forEach(function (p, i) {
+      var row = el('<div class="prow' + (p.on ? "" : " off") + '"><span class="rank">' + (i + 1) + '</span><span class="dot" style="background:' + p.color + '"></span>' +
+        '<span class="name">' + esc(p.name) + "</span>" + sw(p.on) +
+        '<div class="ctl ab' + (i === 0 ? " dis" : "") + '">' + glyph("up", "currentColor", 2.4) + "</div>" +
+        '<div class="ctl ab' + (i === n - 1 ? " dis" : "") + '">' + glyph("down", "currentColor", 2.4) + "</div></div>");
+      c0.appendChild(row);
+      var ctls = row.querySelectorAll(".ctl");
+      pcols[0].push({ el: row, ctls: [
+        { el: ctls[0], act: function () { p.on = !p.on; providersDirty = true; savePrefs(); buildPrefs(); paintPrefs(); } },
+        { el: ctls[1], act: function () { moveProvider(i, -1); } },
+        { el: ctls[2], act: function () { moveProvider(i, 1); } }
+      ] });
+    });
+    [
+      { name: "Bouton maison → Accueil", sub: "Le bouton maison de la télécommande ouvre cette app", key: "homeRedirect" },
+      { name: "Changer les suggestions", sub: "Nouvelle sélection toutes les 5 minutes", key: "autoRefresh" },
+      { name: "Suggestions de saison", sub: prefs.season ? prefs.season + " en ce moment" : "Halloween, Noël, Saint-Valentin…", key: "seasonal", refresh: true },
+      { name: "Hors de mes plateformes", sub: "Proposer aussi des titres absents de mes services", key: "offPlatform", refresh: true }
+    ].forEach(function (o) {
+      var row = el('<div class="prow tall"><span class="name">' + esc(o.name) + '<span class="sub">' + esc(o.sub) + "</span></span>" + sw(prefs[o.key]) + "</div>");
+      c1.appendChild(row);
+      pcols[1].push({ el: row, ctls: [{ el: row.querySelector(".ctl"), act: function () { prefs[o.key] = !prefs[o.key]; if (o.refresh) providersDirty = true; savePrefs(); buildPrefs(); paintPrefs(); } }] });
+    });
+    var rot = el('<div class="prow tall"><span class="name">Durée par suggestion<span class="sub">OK pour changer · avant de passer à la suivante</span></span>' +
+      '<div class="ctl pbtn pval">' + (prefs.rotateSeconds || 10) + ' s</div></div>');
+    c1.appendChild(rot);
+    pcols[1].push({ el: rot, ctls: [{ el: rot.querySelector(".ctl"), act: function () {
+      var i = ROTATE_CHOICES.indexOf(prefs.rotateSeconds || 10);
+      prefs.rotateSeconds = ROTATE_CHOICES[(i + 1) % ROTATE_CHOICES.length];
+      savePrefs(); rot.querySelector(".ctl").textContent = prefs.rotateSeconds + " s";
+    } }] });
+    var th = el('<div class="prow tall"><span class="name">Thème<span class="sub">OK pour changer · personnalisable depuis le téléphone</span></span>' +
+      '<div class="ctl pbtn pval"></div></div>');
+    function paintTheme() { th.querySelector(".ctl").innerHTML = '<span class="swatch" style="background:' + themeColors(prefs.theme || { name: "nuit" })["--accent"] + '"></span>' + esc(themeName()); }
+    paintTheme();
+    c1.appendChild(th);
+    pcols[1].push({ el: th, ctls: [{ el: th.querySelector(".ctl"), act: function () {
+      var keys = (prefs.themes || []).map(function (p) { return p.key; }).concat(["custom"]);
+      var i = keys.indexOf((prefs.theme || {}).name);
+      prefs.theme = Object.assign({}, prefs.theme, { name: keys[(i + 1) % keys.length] }); // keeps the custom colours
+      applyTheme(); paintTheme(); savePrefs();
+    } }] });
+    var lg = el('<div class="prow tall"><span class="name">Accueil LG<span class="sub">Pour accéder aux autres apps et réglages LG</span></span><div class="ctl pbtn">Ouvrir</div></div>');
+    c1.appendChild(lg);
+    pcols[1].push({ el: lg, ctls: [{ el: lg.querySelector(".ctl"), act: function () {
+      closePrefs(); send("POST", "/api/lghome").then(function (r) { if (!r.ok) toast("Télé non connectée au Mac"); }).catch(function () { toast("Mac injoignable"); });
+    } }] });
+  }
+  function moveProvider(i, d) {
+    var j = i + d, list = prefs.providers;
+    if (j < 0 || j >= list.length) return;
+    var tmp = list[i]; list[i] = list[j]; list[j] = tmp;
+    providersDirty = true; savePrefs(); buildPrefs();
+    pf.row = j; paintPrefs();
+  }
+  function paintPrefs() {
+    pcols.forEach(function (col, ci) {
+      col.forEach(function (row, ri) {
+        var cur = ci === pf.col && ri === pf.row;
+        row.el.classList.toggle("cur", cur);
+        row.ctls.forEach(function (c, k) { c.el.classList.toggle("focus", cur && k === pf.ctl); });
+      });
+    });
+  }
+  var lastLocalSave = 0;
+  function savePrefs() {
+    cache("prefs", prefs); lastLocalSave = Date.now();
+    clearTimeout(savePrefs.t);
+    savePrefs.t = setTimeout(function () {
+      send("PUT", "/api/settings", {
+        providers: prefs.providers.map(function (p) { return { key: p.key, on: p.on }; }),
+        homeRedirect: prefs.homeRedirect, autoRefresh: prefs.autoRefresh, seasonal: prefs.seasonal !== false, offPlatform: !!prefs.offPlatform, rotateSeconds: prefs.rotateSeconds || 10, theme: prefs.theme
+      }).catch(function () { toast("Mac injoignable, préférences non enregistrées"); });
+    }, 400);
+  }
+  function openPrefs() {
+    if (!prefs.providers.length) { toast("Mac injoignable"); return; }
+    buildPrefs(); pf = { col: 0, row: 0, ctl: 0 }; paintPrefs();
+    mode = "prefs"; setOverlay("prefs", true);
+  }
+  function closePrefs() {
+    mode = "home"; setOverlay("prefs", false);
+    if (providersDirty) { providersDirty = false; toast("Suggestions mises à jour"); setTimeout(function () { refreshPool(true); }, 4000); }
+  }
+  function prefsKey(k) {
+    var col = pcols[pf.col], row = col[pf.row];
+    if (k === 38 && pf.row > 0) pf.row--;
+    else if (k === 40 && pf.row < col.length - 1) pf.row++;
+    else if (k === 37) {
+      if (pf.ctl > 0) pf.ctl--;
+      else if (pf.col === 1) { pf.col = 0; pf.row = Math.min(pf.row, pcols[0].length - 1); pf.ctl = pcols[0][pf.row].ctls.length - 1; }
+    }
+    else if (k === 39) {
+      if (pf.ctl < row.ctls.length - 1) pf.ctl++;
+      else if (pf.col === 0) { pf.col = 1; pf.row = Math.min(pf.row, pcols[1].length - 1); pf.ctl = 0; }
+    }
+    else if (k === 13) { row.ctls[pf.ctl].act(); return; }
+    else if (k === 461) { closePrefs(); return; }
+    pf.ctl = Math.min(pf.ctl, pcols[pf.col][pf.row].ctls.length - 1);
+    paintPrefs();
+  }
+
+  // ---------- TV guide ----------
+  var guide = null, reminders = [], gf = { col: 0, ch: 0, pr: 0 }, gProgs = [];
+  function remId(c, p) { return c.guide + ":" + p.start; }
+  function hasRem(c, p) { return reminders.some(function (r) { return r.id === remId(c, p); }); }
+  function dayName(t) {
+    var d = new Date(t), today = new Date(); today.setHours(0, 0, 0, 0);
+    var n = Math.round((new Date(t).setHours(0, 0, 0, 0) - today.getTime()) / 864e5);
+    return n === 0 ? "Aujourd'hui" : n === 1 ? "Demain" : d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+  }
+  function openGuide() {
+    Promise.all([get("/api/guide"), get("/api/reminders")]).then(function (r) {
+      guide = r[0]; reminders = r[1];
+      guide.channels = guide.channels.filter(function (c) { return c.progs.length; });
+      if (!guide.channels.length) { toast("Guide pas encore chargé"); return; }
+      // Start on the channel last watched
+      var last = live && live.channel, at = 0;
+      guide.channels.forEach(function (c, i) { if (last && c.number === last.number) at = i; });
+      gf = { col: 0, ch: at, pr: 0 };
+      buildGuideChannels(); buildGuideProgs(); paintGuide();
+      mode = "guide"; setOverlay("guide", true);
+    }).catch(function () { toast("Mac injoignable"); });
+  }
+  function buildGuideChannels() {
+    var box = document.querySelector("#g-ch .glist"); box.innerHTML = "";
+    guide.channels.forEach(function (c, i) {
+      var now = c.progs[0];
+      var row = el('<div class="gc"><div class="lg"' + (c.logo ? ' style="background-image:url(' + esc(c.logo) + ')"' : "") + '></div><div class="nm"><b>' + esc(c.number + "  " + c.name) +
+        "</b><span>" + esc(now ? now.title : "") + "</span></div></div>");
+      row.onmouseenter = function () { if (gf.col !== 0 || gf.ch !== i) { gf.col = 0; gf.ch = i; gf.pr = 0; buildGuideProgs(); paintGuide(); } };
+      row.onclick = function () { guideOk(); };
+      box.appendChild(row);
+    });
+  }
+  function buildGuideProgs() {
+    var c = guide.channels[gf.ch], box = document.querySelector("#g-pr .glist"), t = Date.now(), day = dayName(t);
+    box.innerHTML = ""; gProgs = [];
+    c.progs.forEach(function (p, i) {
+      var d = dayName(Math.max(p.start, t));
+      if (d !== day) { day = d; box.appendChild(el('<div class="gday">' + esc(d) + "</div>")); }
+      var on = p.start <= t;
+      var row = el('<div class="gp' + (on ? " live" : "") + (hasRem(c, p) ? " rem" : "") + '"><div class="hr">' + (on ? "Direct" : hhmm(p.start)) + '</div><div class="tx"><b>' + esc(p.title) +
+        "</b><small>" + esc([p.category, hhmm(p.start) + " – " + hhmm(p.stop)].filter(Boolean).join("  ·  ")) + '</small><div class="ds">' + esc(p.desc) + '</div></div><div class="bl">' + glyph("bell", "currentColor", 2.2) + "</div></div>");
+      row.onmouseenter = function () { gf.col = 1; gf.pr = i; paintGuide(); };
+      row.onclick = function () { guideOk(); };
+      box.appendChild(row); gProgs.push(row);
+    });
+  }
+  // Keep the focused row in view: scroll so it sits about a third down the column
+  function scrollTo(list, row) {
+    var y = Math.max(0, Math.min(row.offsetTop - 240, list.offsetHeight - 780));
+    list.style.transform = "translateY(" + -y + "px)";
+  }
+  function paintGuide() {
+    var chs = document.querySelectorAll("#g-ch .gc");
+    for (var i = 0; i < chs.length; i++) { chs[i].classList.toggle("focus", gf.col === 0 && i === gf.ch); chs[i].classList.toggle("sel", gf.col === 1 && i === gf.ch); }
+    gProgs.forEach(function (r, i) { r.classList.toggle("focus", gf.col === 1 && i === gf.pr); });
+    scrollTo(document.querySelector("#g-ch .glist"), chs[gf.ch]);
+    if (gProgs[gf.pr]) scrollTo(document.querySelector("#g-pr .glist"), gf.col === 1 ? gProgs[gf.pr] : gProgs[0]);
+  }
+  function guideOk() {
+    var c = guide.channels[gf.ch], p = c.progs[gf.pr];
+    if (gf.col === 0 || p.start <= Date.now()) { closeGuide(); tune(c.id); return; }
+    var had = hasRem(c, p);
+    var req = had ? send("DELETE", "/api/reminders/" + encodeURIComponent(remId(c, p))) : send("POST", "/api/reminders", { guide: c.guide, start: p.start });
+    req.then(function (l) {
+      if (!Array.isArray(l)) { toast("Rappel impossible"); return; }
+      reminders = l; gProgs[gf.pr].classList.toggle("rem", hasRem(c, p));
+      toast(had ? "Rappel supprimé" : "Rappel " + ((prefs.reminderLead || 15) + " min avant · " + p.title));
+    }).catch(function () { toast("Mac injoignable"); });
+  }
+  function closeGuide() { mode = "home"; setOverlay("guide", false); }
+  function guideKey(k) {
+    var n = guide.channels.length;
+    if (k === 461) { closeGuide(); return; }
+    if (k === 13) { guideOk(); return; }
+    if (gf.col === 0) {
+      if (k === 38 && gf.ch > 0) gf.ch--;
+      else if (k === 40 && gf.ch < n - 1) gf.ch++;
+      else if (k === 39) { gf.col = 1; gf.pr = 0; paintGuide(); return; }
+      else return;
+      gf.pr = 0; buildGuideProgs();
+    } else {
+      if (k === 38 && gf.pr > 0) gf.pr--;
+      else if (k === 40 && gf.pr < gProgs.length - 1) gf.pr++;
+      else if (k === 37) gf.col = 0;
+    }
+    paintGuide();
+  }
+  // Switch the TV to a channel; the Mac does it (the app can't), else just open live TV
+  function tune(channelId) {
+    send("POST", "/api/tune", { channelId: channelId })
+      .then(function (r) { if (!r.ok) launch("com.webos.app.livetv"); })
+      .catch(function () { launch("com.webos.app.livetv"); });
+  }
+  // "Ouvrir" on a reminder alert relaunches us with { tune: <channel id>, at }
+  function launchParams(p) {
+    if (typeof p === "string") { try { p = JSON.parse(p); } catch (e) { p = {}; } }
+    if (!p || !p.tune || p.at === cache("tuneAt")) return;
+    cache("tuneAt", p.at);
+    if (mode === "guide") closeGuide();
+    tune(p.tune);
+  }
+
+  document.addEventListener("keydown", function (e) {
+    var k = e.keyCode;
+    if ([13, 37, 38, 39, 40, 461].indexOf(k) < 0) return;
+    e.preventDefault();
+    onKey(k);
+  });
+  function onKey(k) {
+    if (mode === "guide") guideKey(k); else if (mode === "trailer") trailerKey(k); else if (mode === "sheet") sheetKey(k); else if (mode === "picker") pickerKey(k); else if (mode === "prefs") prefsKey(k); else homeKey(k);
+  }
+
+  // ---------- Clock ----------
+  function tick() {
+    var d = new Date();
+    $("clock").innerHTML = hhmm(d) + "<small>" + d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" }) + "</small>";
+    paintLive();
+  }
+
+  // ---------- Boot: paint from cache first, then refresh from the Mac ----------
+  buildTopbar(); buildApps(); buildSources();
+  var saved = cache("pos");
+  if (saved && saved.r >= R_APPS && rows[saved.r] && rows[saved.r][saved.c]) pos = saved;
+  render(); paintShelf(true); tick();
+  setInterval(tick, 20000);
+
+  get("/api/apps").then(function (d) {
+    seenApps = d.seen || []; cache("seen", seenApps);
+    if (d.apps && JSON.stringify(d.apps) !== JSON.stringify(homeApps)) {
+      homeApps = d.apps; cache("apps", homeApps); buildApps(); focused = null;
+      if (!rows[pos.r][pos.c]) pos = { r: R_APPS, c: 1 };
+      render();
+    }
+  }).catch(function () {});
+  applyTheme();
+  function refreshPrefs() {
+    if (Date.now() - lastLocalSave < 2000) return; // our own change echoing back: don't undo a quick second press
+    get("/api/settings").then(function (d) {
+      prefs = d; cache("prefs", prefs); applyTheme();
+      if (mode === "prefs") { buildPrefs(); paintPrefs(); }
+    }).catch(function () {});
+  }
+  refreshPrefs();
+  setInterval(refreshPrefs, 60000); // fallback if the event stream is down
+
+  // The Mac pushes changes (from the phone or a recompute) so the TV updates immediately
+  var events = null;
+  if (typeof EventSource !== "undefined") {
+    events = new EventSource(window.SERVER + "/api/events"); // reconnects by itself
+    events.addEventListener("settings", refreshPrefs);
+    events.addEventListener("suggestions", function () { refreshPool(false); });
+    // Phone remote: the companion relays arrows / OK / Back while this app is on screen
+    var REMOTE_KEYS = { "key-up": 38, "key-down": 40, "key-left": 37, "key-right": 39, "key-ok": 13, "key-back": 461 };
+    Object.keys(REMOTE_KEYS).forEach(function (name) {
+      events.addEventListener(name, function () { if (!document.hidden) onKey(REMOTE_KEYS[name]); });
+    });
+  }
+  refreshLive(); refreshPool(!movies.length);
+  setInterval(refreshLive, 60000);
+  setInterval(function () { refreshPool(false); }, 30 * 60000);
+  function wake() {
+    scheduleRotate();
+    if (document.hidden) return;
+    refreshLive(); refreshPrefs();
+    get("/api/apps").then(function (d) { seenApps = d.seen || []; cache("seen", seenApps); }).catch(function () {});
+  }
+  document.addEventListener("visibilitychange", wake);
+  document.addEventListener("webOSRelaunch", wake);
+  document.addEventListener("webOSRelaunch", function (e) { launchParams(e.detail || (window.PalmSystem && PalmSystem.launchParams)); });
+  if (window.PalmSystem) launchParams(PalmSystem.launchParams);
+  if (events) events.addEventListener("reminders", function () {
+    if (mode !== "guide") return;
+    get("/api/reminders").then(function (l) {
+      reminders = l; var c = guide.channels[gf.ch];
+      gProgs.forEach(function (r, i) { r.classList.toggle("rem", hasRem(c, c.progs[i])); });
+    }).catch(function () {});
+  });
+})();
+</script>
+</body>
+</html>

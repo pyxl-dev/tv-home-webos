@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1663.004" height="390.836" viewBox="0 0 1663.004 390.836">
+  <defs>
+    <radialGradient id="radial-gradient" cx="0.063" cy="1" r="1.848" gradientTransform="matrix(0.271, -0.963, 0.431, 0.121, -0.385, 0.939)" gradientUnits="objectBoundingBox">
+      <stop offset="0" stop-color="#050131"/>
+      <stop offset="1" stop-color="#020379"/>
+    </radialGradient>
+  </defs>
+  <g id="Logo_TF1_" data-name="Logo TF1+" transform="translate(24491.004 -10587.258)">
+    <path id="Tracé_1931" data-name="Tracé 1931" d="M-41648.488-6016.584H-41805.5v-61h157.016v-149.057l63.309-13.94v163h156.68v61h-156.68v147.8l-63.309,15.292Zm-468.281,163.094v-340.647l177.207-50.19v390.837Zm-472.812,0v-390.837h313.246v98.1h-144.57v70.5H-42317v98.088h-103.906v124.151Zm-414.832,0v-255.958h-87.09v-134.879h342.367v134.879h-87.09v255.958Z" transform="translate(18600.5 16831.584)" fill="#ffffff"/>
+  </g>
+</svg>

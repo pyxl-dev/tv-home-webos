@@ -1,0 +1,13 @@
+{
+  "id": "com.yoan.home",
+  "version": "2.11.0",
+  "vendor": "Yoan",
+  "type": "web",
+  "main": "index.html",
+  "title": "Accueil",
+  "icon": "icon.png",
+  "largeIcon": "largeIcon.png",
+  "bgColor": "#0b0b0f",
+  "resolution": "1920x1080",
+  "disableBackHistoryAPI": true
+}

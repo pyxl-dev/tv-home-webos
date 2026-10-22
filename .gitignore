@@ -1,0 +1,14 @@
+node_modules/
+companion/target/
+dist/
+.DS_Store
+*.log
+# Secrets and personal data — never commit
+companion/client-key*.txt
+companion/data/
+
+# Local setup (copy the .example files)
+app/config.js
+companion/tv-home.env
+# Personal agent notes
+CLAUDE.md

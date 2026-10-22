@@ -1,0 +1,16 @@
+[Unit]
+Description=TV Home companion
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+WorkingDirectory=%h/tv-home/companion
+EnvironmentFile=-%h/tv-home/companion/tv-home.env
+ExecStart=%h/tv-home/companion/target/release/tv-home-companion
+Restart=always
+RestartSec=3
+StandardOutput=append:%h/tv-home/companion/companion.log
+StandardError=append:%h/tv-home/companion/companion.log
+
+[Install]
+WantedBy=default.target
