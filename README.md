@@ -48,3 +48,11 @@ Logs : `ssh serveur.local tail -f tv-home/companion/companion.log`.
 Tester sur la télé : `node tools/tv.mjs` (capture de l'écran réel, capture de l'app en 1920×1080, JS dans l'app, touches de télécommande, clic sur un bouton par son nom, extinction). Lancer sans argument pour l'aide. Il lit l'IP de la télé dans `companion/tv-home.env`.
 
 Non versionnés : `app/config.js`, `companion/tv-home.env`, `companion/client-key.txt` (clé de jumelage télé) et `companion/data/` (clé TMDB, notes, cache).
+
+## Licence
+
+Code sous licence MIT (voir `LICENSE`).
+
+- La police Inter (`app/fonts/`) est sous SIL Open Font License 1.1 (voir `app/fonts/OFL.txt`).
+- Les logos de `app/logos/` (Netflix, YouTube, Spotify, TF1+, etc.) sont des marques de leurs propriétaires. Ils ne sont pas couverts par la licence MIT et servent seulement à identifier les applications sur la télé.
+- Projet non officiel, sans lien avec LG Electronics.
