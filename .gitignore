@@ -10,5 +10,3 @@ companion/data/
 # Local setup (copy the .example files)
 app/config.js
 companion/tv-home.env
-# Personal agent notes
-CLAUDE.md
