@@ -19,7 +19,7 @@ Une app sur la télé, un petit service Rust sur ton réseau local qui ouvre l'a
 
 <p align="center"><img src="docs/banner.svg" width="800" alt="tv-home-webos : un accueil façon Apple TV pour ta télé LG webOS"></p>
 
-<p align="center"><a href="docs/trailer.mp4"><img src="docs/trailer-poster.jpg" width="800" alt="Lancer le teaser de tv-home-webos"></a><br><sub>▶ Le teaser avant / après (31 s, avec le son)</sub></p>
+https://github.com/user-attachments/assets/9ecd0bcb-9972-40c4-85ff-049480bb9e3e
 
 <p align="center"><img src="docs/screenshot.png" width="800" alt="L'écran d'accueil sur la télé (données de démonstration) : suggestion du moment, carte Live TV, tuiles des apps et sources"></p>
 

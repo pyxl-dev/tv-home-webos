@@ -19,7 +19,7 @@ An app on the TV, plus a small Rust service on your local network that opens the
 
 <p align="center"><img src="docs/banner.en.svg" width="800" alt="tv-home-webos: an Apple TV-style home screen for your LG webOS TV"></p>
 
-<p align="center"><a href="docs/trailer.mp4"><img src="docs/trailer-poster.jpg" width="800" alt="Play the tv-home-webos teaser"></a><br><sub>▶ The before / after teaser (31 s, French on-screen text, sound on)</sub></p>
+https://github.com/user-attachments/assets/9ecd0bcb-9972-40c4-85ff-049480bb9e3e
 
 <p align="center"><img src="docs/screenshot.png" width="800" alt="The home screen on the TV (demo data): current suggestion, Live TV card, app tiles and sources"></p>
 
