@@ -466,11 +466,15 @@ struct SearchQ {
     q: Option<String>,
     genre: Option<i64>,
     person: Option<i64>,
+    cinema: Option<String>,
     page: Option<u32>,
 }
 async fn search(State(app): S, Query(q): Query<SearchQ>) -> R {
     if app.settings.read().await.tmdb_key.is_empty() {
         return ok(json!({ "error": "no-key", "items": [] }));
+    }
+    if let Some(c) = q.cinema.as_deref() {
+        return ok(suggest::cinema(&app, c, q.page.unwrap_or(1).clamp(1, 10)).await?);
     }
     ok(match (q.genre, q.person) {
         (Some(g), _) => suggest::by_genre(&app, g, q.page.unwrap_or(1).clamp(1, 10)).await?,

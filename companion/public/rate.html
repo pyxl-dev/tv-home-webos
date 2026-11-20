@@ -223,7 +223,7 @@
   .field input::-webkit-search-cancel-button { display: none; }
   .field .x { width: 22px; height: 22px; border-radius: 50%; background: var(--dim2); color: #000; display: flex; align-items: center; justify-content: center; flex: none; }
   .field .x svg { width: 11px; height: 11px; color: #000; }
-  #genres { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-gap: 10px; }
+  #genres, #cine { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-gap: 10px; }
   .gtile { position: relative; height: 84px; border-radius: 14px; overflow: hidden; text-align: left; padding: 12px 14px; display: flex; align-items: flex-end; font-size: 17px; font-weight: 800; letter-spacing: -.2px; color: #fff; transition: transform .15s; }
   .gtile:active { transform: scale(.97); }
   .gtile span { position: relative; z-index: 1; text-shadow: 0 1px 6px rgba(0,0,0,.35); }
@@ -412,7 +412,7 @@
 <section id="v-search" class="view">
   <div class="title"><div><h1>Rechercher</h1></div></div>
   <div class="sbox"><div class="field"><span class="ico-search"></span><input id="q" type="search" placeholder="Titre, genre, acteur, réalisateur…" autocomplete="off" enterkeyhint="search"><button class="x" id="qx" hidden aria-label="Effacer"></button></div></div>
-  <div id="s-home"><div class="sec">Parcourir</div><div id="genres"></div></div>
+  <div id="s-home"><div class="sec">Cinéma</div><div id="cine"></div><div class="sec">Parcourir</div><div id="genres"></div></div>
   <div id="s-res" hidden><div class="chips" id="found"></div><div id="results"></div></div>
   <div id="s-browse" hidden><div class="bhead"><button class="round" id="back" aria-label="Retour"></button><b></b></div><div id="blist"></div><div id="sentinel"></div></div>
 </section>
@@ -441,9 +441,14 @@
 <div id="sheet"><div class="scrim"></div><div class="panel"><div class="grab"></div><div class="scroll"></div></div></div>
 
 <script src="/tv/apps.js"></script>
+<!-- Local add-ons, not versioned and optional (404 when absent): see docs/local-addons.md -->
+<script src="/pwa/local.js"></script>
 <script>
 const api = (p, body, method) => fetch(p, body ? { method: method || 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {}).then(r => r.json());
 const $ = id => document.getElementById(id);
+// Local add-ons: /pwa/local.js may set window.TVHOME_EXT(place, node, item) to decorate what the page
+// draws: 'row', 'card', 'tile', 'sheet' (item = title or details), and 'home' once at start.
+const ext = (place, node, item) => { try { if (window.TVHOME_EXT) window.TVHOME_EXT(place, node, item); } catch (e) { console.warn('local.js', e); } };
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
 const svg = (d, o) => `<svg viewBox="0 0 24 24" ${o || 'fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"'}>${d}</svg>`;
@@ -492,7 +497,18 @@ const VERDICTS = ['pass', 'unseen', 'neutral', 'want', 'like'];
 const LABELS = { like: "J'aime", neutral: 'Neutre', want: 'Intéressé', pass: 'Passe', unseen: 'Pas vu' };
 const COLORS = { like: '#30d158', neutral: '#ff9f0a', want: '#0a84ff', pass: '#ff453a', unseen: '#bf5af2' };
 const kind = t => t === 'tv' ? 'Série' : 'Film';
-const sub = m => [kind(m.type), m.year].filter(Boolean).join(' · ');
+// Cinema lists carry the French release date instead of the year
+const sub = m => m.release ? releaseText(m.release) : [kind(m.type), m.year].filter(Boolean).join(' · ');
+function releaseText(iso) {
+  const d = new Date(iso + 'T12:00'), today = new Date(); today.setHours(0, 0, 0, 0);
+  const days = Math.round((d - today) / 864e5 - .5);
+  const day = d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  if (days < 0) return 'En salle depuis le ' + day;
+  if (days === 0) return 'Sort aujourd’hui';
+  if (days === 1) return 'Sort demain';
+  if (days < 7) return 'Sort ' + d.toLocaleDateString('fr-FR', { weekday: 'long' });
+  return 'Sort le ' + day;
+}
 const lum = hex => { const n = parseInt(hex.slice(1), 16); return (0.299 * (n >> 16 & 255) + 0.587 * (n >> 8 & 255) + 0.114 * (n & 255)) / 255; };
 const store = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } };
 
@@ -547,6 +563,7 @@ function row(m, current) {
   const bar = vbar(m, current);
   r.querySelector('.t').appendChild(bar);
   r.onclick = () => openItem(m, c => bar.set(c));
+  ext('row', r, m);
   return r;
 }
 
@@ -583,6 +600,7 @@ function cardEl(m) {
     `<button class="round infob" aria-label="Fiche">${I.info}</button><div class="stamp"></div>
      <div class="info"><h2>${esc(m.title)}</h2><div class="meta">${esc([sub(m), (m.genres || []).slice(0, 2).join(', ')].filter(Boolean).join(' · '))}</div>` +
     (m.overview ? `<div class="ov">${esc(m.overview)}</div>` : '') + '</div>';
+  ext('card', c, m);
   return c;
 }
 const BACK = i => `translateY(${i * 14}px) scale(${1 - i * .05})`;
@@ -655,7 +673,12 @@ const GENRES = [[28, 'Action', '💥', '#e8452c', '#8a1a0e'], [35, 'Comédie', '
   [14, 'Fantastique', '🐉', '#8e5cf7', '#3e1f91'], [12, 'Aventure', '🧭', '#2fa66b', '#0f4d2f'], [10751, 'Familial', '🏡', '#ff9a3c', '#a84a06'],
   [99, 'Documentaire', '🎥', '#7a8a99', '#36414b'], [9648, 'Mystère', '🔎', '#4f6d7a', '#1c2c33'], [36, 'Histoire', '🏛️', '#b08a4e', '#5a4120'], [10752, 'Guerre', '🎖️', '#6f7d3c', '#2e3517']];
 $('genres').innerHTML = GENRES.map(([id, n, e, a, b]) => `<button class="gtile" data-id="${id}" style="background:linear-gradient(135deg,${a},${b})"><span>${n}</span><em>${e}</em></button>`).join('');
-$('genres').querySelectorAll('.gtile').forEach(b => b.onclick = () => browse({ genre: b.dataset.id }, b.textContent.replace(/\S+$/, '').trim()));
+$('genres').querySelectorAll('.gtile').forEach(b => b.onclick = () => browse({ genre: b.dataset.id }, b.querySelector('span').textContent));
+
+$('cine').innerHTML = [['now', 'Au cinéma', '🍿', '#d63a3a', '#6e1010'], ['soon', 'Prochaines sorties', '🎟️', '#e0a52a', '#7a4a06']]
+  .map(([k, n, e, a, b]) => `<button class="gtile" data-k="${k}" style="background:linear-gradient(135deg,${a},${b})"><span>${n}</span><em>${e}</em></button>`).join('');
+$('cine').querySelectorAll('.gtile').forEach(b => b.onclick = () => browse({ cinema: b.dataset.k }, b.querySelector('span').textContent));
+ext('home', $('s-home'));
 
 let st = null, browsing = null;
 function searchMode(m) { $('s-home').hidden = m !== 'home'; $('s-res').hidden = m !== 'res'; $('s-browse').hidden = m !== 'browse'; document.querySelector('#v-search .sbox').hidden = m === 'browse'; document.querySelector('#v-search .title').hidden = m === 'browse'; }
@@ -693,7 +716,12 @@ async function loadBrowse() {
   const r = await api(`/api/search?${qs}&page=${b.page}`);
   if (browsing !== b) return;
   if (b.page === 1) $('blist').innerHTML = '';
-  r.items.forEach(m => $('blist').appendChild(row(m, m.rating)));
+  r.items.forEach(m => {
+    // Upcoming releases are in date order: a heading per month
+    const month = b.by.cinema === 'soon' && m.release && new Date(m.release + 'T12:00').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+    if (month && month !== b.month) { b.month = month; $('blist').appendChild(el('div', 'sec', month[0].toUpperCase() + month.slice(1))); }
+    $('blist').appendChild(row(m, m.rating));
+  });
   if (!$('blist').children.length) $('blist').innerHTML = '<div class="empty">Aucun titre.</div>';
   b.more = !!r.more; b.loading = false;
 }
@@ -722,6 +750,7 @@ function drawGrid() {
   list.forEach(r => {
     const t = el('button', 'tile', `<div class="p" style="background-image:url('${esc(r.poster || '')}')"><span class="badge bg-${r.verdict}">${I[r.verdict]}</span></div><b>${esc(r.title)}</b>`);
     t.onclick = () => openItem({ id: r.id, type: r.type, key: r.key, title: r.title, poster: r.poster, genre_ids: r.genres }, c => { r.verdict = c; drawFilters(); drawGrid(); });
+    ext('tile', t, r);
     box.appendChild(t);
   });
 }
@@ -785,6 +814,7 @@ async function openItem(m, onChange) {
       <h4>Où regarder</h4><div class="watch">${d.watch.length ? d.watch.map(w => `<span class="${w.mine ? 'mine' : ''}">${esc(w.name)}</span>`).join('') : '<span>Pas en streaming en France</span>'}</div>
     </div>`);
   wireClose();
+  ext('sheet', panel, d);
   const ov = panel.querySelector('.ovw'), more = panel.querySelector('.more');
   if (ov.scrollHeight > ov.clientHeight + 4) { more.hidden = false; more.onclick = () => { ov.classList.remove('clamp'); more.hidden = true; }; }
   const box = panel.querySelector('.verdicts');

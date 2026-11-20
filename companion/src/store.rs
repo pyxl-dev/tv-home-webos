@@ -207,6 +207,9 @@ pub struct Item {
     /// Set on a liked title brought back for the pleasure of watching it again
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub rewatch: bool,
+    /// French cinema release date (YYYY-MM-DD), set on the "Au cinéma" / "Prochaines sorties" lists
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub release: Option<String>,
 }
 
 #[derive(Serialize, Clone)]
