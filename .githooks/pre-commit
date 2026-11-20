@@ -1,0 +1,3 @@
+#!/bin/sh
+# Dépôt public : chaque ligne ajoutée passe la garde (gabarit LifeOS public-repo-guard). Contourner : jamais.
+exec bun "$(git rev-parse --show-toplevel)/scripts/public-guard.ts" staged

@@ -15,6 +15,7 @@ pub const HOME_APP: &str = "com.yoan.home";
 pub const LIVE_APP: &str = "com.webos.app.livetv";
 pub const LG_HOME: &str = "com.webos.app.home";
 
+const CAST_APPS: [&str; 1] = ["airplay"]; // streams from a phone or Mac, not to be covered by our app
 const LAUNCH_DELAY: Duration = Duration::from_secs(4); // let webOS finish booting its own home first
 const SETTLE: Duration = Duration::from_millis(700); // LG home animates in and grabs focus back
 const BEAT: Duration = Duration::from_secs(20);
@@ -49,6 +50,12 @@ pub fn ssap(kind: &str, id: &str, uri: &str, payload: Value) -> String {
 
 pub fn launch_msg(app_id: &str) -> String {
     ssap("request", "launch", "ssap://system.launcher/launch", json!({ "id": app_id }))
+}
+
+/// TV really going to standby, as opposed to the screen saver or "screen off" (picture off, app still running).
+fn is_power_off(state: &str, processing: &str) -> bool {
+    !matches!(state, "Active" | "Screen Saver" | "Screen Off")
+        || ["Power Off", "Suspend", "Standby"].iter().any(|k| processing.contains(k))
 }
 
 /// Wake-on-LAN magic packet; only works when "Turn on via Wi-Fi" is enabled on the TV.
@@ -266,13 +273,16 @@ async fn session(app: &Arc<App>, manifest: &Value, key: &str) -> anyhow::Result<
                     (_, "power") => {
                         power_known = true;
                         let state = p["state"].as_str().unwrap_or("");
-                        log!("power {state}");
+                        let processing = p["processing"].as_str().unwrap_or("");
+                        if processing.is_empty() { log!("power {state}"); } else { log!("power {state} ({processing})"); }
                         if state == "Active" && p["processing"].is_null() {
                             if app.tv_on_since.compare_exchange(0, now_ms(), Ordering::Relaxed, Ordering::Relaxed).is_ok() { let _ = app.events.send("tv"); }
                             if !launched && launch_at.is_none() { launch_at = Some(Instant::now() + LAUNCH_DELAY); }
                         } else {
                             if app.tv_on_since.swap(0, Ordering::Relaxed) != 0 { let _ = app.events.send("tv"); }
-                            launched = false;
+                            // Only a real power-off re-arms the launch: the screen saver can kick in during AirPlay
+                            // and its "Active" on wake-up used to pull our app over the stream
+                            if is_power_off(state, processing) { launched = false; }
                             launch_at = None;
                         }
                     }
@@ -332,6 +342,8 @@ async fn session(app: &Arc<App>, manifest: &Value, key: &str) -> anyhow::Result<
             _ = sleep_until(launch_at.unwrap_or_else(far)), if launch_at.is_some() => {
                 launch_at = None;
                 launched = true;
+                // Reconnecting mid-cast also looks like a power-on: never cut a stream the user started
+                if CAST_APPS.contains(&current_app.as_str()) { log!("launch home skipped: {current_app} on screen"); continue; }
                 log!("launch home");
                 sink.send(Message::Text(launch_msg(HOME_APP))).await?;
             }

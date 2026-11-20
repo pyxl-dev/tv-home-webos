@@ -1,11 +1,13 @@
 // Apps shown on first launch, before the Mac has a saved list
-window.DEFAULT_APPS = ["netflix", "youtube.leanback.v4", "amazon", "com.disney.disneyplus-prod", "spotify-beehive"];
+window.DEFAULT_APPS = ["netflix", "youtube.leanback.v4", "com.pyxl-dev.youtube", "amazon", "com.disney.disneyplus-prod", "spotify-beehive"];
 
 // How each app looks. `match` is tested against the webOS app id, so apps
 // learned from the TV (opened once from the LG home) get the right style.
 // Logos are sized by height (logoScale) or, for wide wordmarks, by width (logoWidth, % of the tile).
 window.APP_STYLES = [
   { match: /^netflix$/, name: "Netflix", logo: "logos/netflix.svg", tile: "linear-gradient(180deg,#1f1f1f,#0c0c0c)" },
+  // YouTube AdFree, our build of webosbrew/youtube-webos (github.com/pyxl-dev/youtube-adfree)
+  { match: /^com\.pyxl-dev\.youtube$/, name: "YouTube AdFree", logo: "logos/youtube.svg", tile: "linear-gradient(180deg,#272727,#0f0f0f)" },
   { match: /^youtube\.leanback/, name: "YouTube", logo: "logos/youtube.svg", tile: "#fff" },
   { match: /^amazon$|primevideo/, name: "Prime Video", logo: "logos/primevideo.svg", logoScale: 1.6, tile: "linear-gradient(160deg,#1a98ff,#0f79d0)" },
   { match: /disneyplus/, name: "Disney+", word: "Disney+", tile: "radial-gradient(120% 120% at 50% 0%,#1c5fae,#0b1a46 70%)" },

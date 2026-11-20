@@ -1,0 +1,3 @@
+#!/bin/sh
+# Dépôt public : le message de commit est public pour toujours, il passe la garde comme le code.
+exec bun "$(git rev-parse --show-toplevel)/scripts/public-guard.ts" msg "$1"

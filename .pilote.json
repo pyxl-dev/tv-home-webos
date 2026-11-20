@@ -1,0 +1,4 @@
+{
+  "test_paths": ["companion/data", ".pilote-shots"],
+  "evidence": "tests"
+}

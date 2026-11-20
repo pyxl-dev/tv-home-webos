@@ -98,6 +98,7 @@ pub fn shape(m: &Value, kind: &str, provider: Option<PublicProvider>, genres: &H
         watch: None,
         season: None,
         rewatch: false,
+        release: None,
     }
 }
 
@@ -595,6 +596,45 @@ pub async fn by_person(app: &App, id: i64) -> anyhow::Result<Value> {
         .take(60)
         .collect();
     Ok(json!({ "title": p["name"], "items": items, "more": false }))
+}
+
+/// Films in French cinemas: "now" = released these last 6 weeks, most popular first;
+/// "soon" = the 60 most awaited of the next 4 months, in release order.
+pub async fn cinema(app: &App, which: &str, page: u32) -> anyhow::Result<Value> {
+    load_genres(app).await?;
+    let genres = app.genres.read().await.clone();
+    let ratings = app.ratings.read().await.clone();
+    let region = app.settings.read().await.region.clone();
+    let today = chrono::Local::now().date_naive();
+    let soon = which == "soon";
+    let (from, to) = if soon { (today + chrono::Days::new(1), today + chrono::Days::new(120)) } else { (today - chrono::Days::new(42), today) };
+    let (from, to) = (from.format("%Y-%m-%d").to_string(), to.format("%Y-%m-%d").to_string());
+    let pages = if soon { 1..=3 } else { page..=page };
+    let mut items = Vec::new();
+    let mut more = false;
+    for pg in pages {
+        // Theatrical releases (limited + wide) in the user's region; dates in the results are that region's
+        let q = format!("/discover/movie?language=fr-FR&region={region}&with_release_type=2|3&release_date.gte={from}&release_date.lte={to}&sort_by=popularity.desc&page={pg}");
+        let r = tmdb(app, &q, 6 * H).await?;
+        more = pg < r["total_pages"].as_u64().unwrap_or(0) as u32 && pg < 10;
+        for m in results(&r) {
+            // Re-releases keep their original date: they fall outside the window and are left out
+            let date = text(&m, "release_date");
+            if !m["poster_path"].is_string() || date.as_str() < from.as_str() || date.as_str() > to.as_str() {
+                continue;
+            }
+            let mut it = shape(&m, "movie", None, &genres);
+            it.rating = Some(ratings.get(&it.key).map(|r| r.verdict.clone()));
+            it.release = Some(date);
+            items.push(it);
+        }
+    }
+    if soon {
+        items.sort_by(|a, b| a.release.cmp(&b.release));
+        more = false;
+    }
+    let title = if soon { "Prochaines sorties" } else { "Au cinéma" };
+    Ok(json!({ "title": title, "items": items, "more": more }))
 }
 
 pub fn urlencode(s: &str) -> String {

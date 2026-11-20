@@ -1,0 +1,8 @@
+{
+  "project": "tv-home",
+  "publicRoot": "89afb26c4d2ca590023c41b8639393ebd831c0ed",
+  "allow": [
+    "com\\.yoan\\.home",
+    "192\\.168\\.1\\.(10|50)\\b"
+  ]
+}
